@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Authentication</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Custom Tailwind Configuration for theme variables if needed -->
+    <script>
+        tailwind.config = {
+            darkMode: 'media', // Defaults to OS setting, could be toggled via JS
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            850: '#151e2e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Feather Icons (Lightweight alternative to Lucide for Vanilla JS) -->
+    <script src="https://unpkg.com/feather-icons"></script>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 min-h-screen font-sans transition-colors duration-200">
+
+    <div id="loading-view" class="min-h-screen flex items-center justify-center fixed inset-0 bg-slate-50 dark:bg-slate-900 z-50">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+    </div>
+
+    <div id="authenticated-view" class="hidden min-h-screen flex items-center justify-center p-4">
+        <div class="max-w-md w-full bg-white dark:bg-slate-800 rounded-2xl shadow-xl overflow-hidden p-8 border border-slate-200 dark:border-slate-700">
+            <div class="flex justify-center mb-6">
+                <div class="bg-green-100 dark:bg-green-900/30 p-3 rounded-full text-green-600 dark:text-green-400">
+                    <i data-feather="shield"></i>
+                </div>
+            </div>
+            <h2 class="text-2xl font-bold text-center mb-2">Securely Logged In</h2>
+            <p id="user-email-display" class="text-center text-slate-500 dark:text-slate-400 mb-8 truncate">
+                Anonymous User
+            </p>
+            
+            <div class="space-y-4">
+                <div class="bg-slate-100 dark:bg-slate-700/50 rounded-lg p-4 text-sm break-all font-mono text-slate-600 dark:text-slate-300">
+                    <span class="font-semibold block mb-1">Session UID:</span>
+                    <span id="user-uid-display"></span>
+                </div>
+                
+                <button id="logout-btn" class="w-full flex items-center justify-center gap-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 py-3 rounded-xl font-medium transition-colors">
+                    <i data-feather="log-out" class="w-4 h-4"></i>
+                    Sign Out
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="auth-view" class="hidden min-h-screen flex-col justify-center py-12 sm:px-6 lg:px-8">
+        <div class="sm:mx-auto sm:w-full sm:max-w-md">
+            <div class="flex justify-center text-indigo-600 dark:text-indigo-400 mb-4">
+                <i data-feather="shield" class="w-12 h-12"></i>
+            </div>
+            <h2 id="auth-title" class="text-center text-3xl font-extrabold text-slate-900 dark:text-white">
+                Sign in to your account
+            </h2>
+            <p class="mt-2 text-center text-sm text-slate-600 dark:text-slate-400">
+                Protected by industry standard encryption
+            </p>
+        </div>
+
+        <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+            <div class="bg-white dark:bg-slate-800 py-8 px-4 shadow-xl sm:rounded-2xl sm:px-10 border border-slate-200 dark:border-slate-700">
+                
+                <!-- Feedback Alerts -->
+                <div id="error-alert" class="hidden mb-6 bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 p-4 rounded-md flex items-start gap-3">
+                    <i data-feather="alert-circle" class="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0"></i>
+                    <p id="error-message" class="text-sm text-red-700 dark:text-red-300"></p>
+                </div>
+
+                <div id="success-alert" class="hidden mb-6 bg-green-50 dark:bg-green-900/30 border-l-4 border-green-500 p-4 rounded-md flex items-start gap-3">
+                    <i data-feather="check-circle" class="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0"></i>
+                    <p id="success-message" class="text-sm text-green-700 dark:text-green-300"></p>
+                </div>
+
+                <form id="auth-form" class="space-y-6">
+                    <!-- Email Field -->
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                            Email address
+                        </label>
+                        <div class="mt-1 relative rounded-md shadow-sm">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i data-feather="mail" class="h-5 w-5 text-slate-400"></i>
+                            </div>
+                            <input id="email" name="email" type="email" autocomplete="email" required
+                                class="block w-full pl-10 pr-3 py-3 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-slate-900 text-slate-900 dark:text-white transition-colors"
+                                placeholder="you@example.com">
+                        </div>
+                    </div>
+
+                    <!-- Password Field (Hidden in Reset mode) -->
+                    <div id="password-container">
+                        <div class="flex items-center justify-between">
+                            <label for="password" class="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                                Password
+                            </label>
+                            <button type="button" id="forgot-password-btn" class="text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">
+                                Forgot password?
+                            </button>
+                        </div>
+                        <div class="mt-1 relative rounded-md shadow-sm">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i data-feather="lock" class="h-5 w-5 text-slate-400"></i>
+                            </div>
+                            <input id="password" name="password" type="password" autocomplete="current-password"
+                                class="block w-full pl-10 pr-10 py-3 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-slate-900 text-slate-900 dark:text-white transition-colors"
+                                placeholder="••••••••">
+                            <button type="button" id="toggle-password-btn" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 focus:outline-none" aria-label="Toggle password visibility">
+                                <i data-feather="eye" id="eye-icon" class="h-5 w-5"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" id="submit-btn" class="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all">
+                        <span id="submit-text">Sign in</span>
+                        <div id="submit-spinner" class="hidden animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        <i data-feather="arrow-right" id="submit-icon" class="w-4 h-4"></i>
+                    </button>
+                </form>
+
+                <div class="mt-8">
+                    <div class="relative">
+                        <div class="absolute inset-0 flex items-center">
+                            <div class="w-full border-t border-slate-200 dark:border-slate-700"></div>
+                        </div>
+                        <div class="relative flex justify-center text-sm">
+                            <span id="divider-text" class="px-2 bg-white dark:bg-slate-800 text-slate-500">
+                                New here?
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 flex justify-center">
+                        <button type="button" id="toggle-mode-btn" class="text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 font-medium transition-colors">
+                            Create a new account
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Security Info Footer -->
+            <div class="mt-8 text-center text-xs text-slate-500 dark:text-slate-400 flex items-center justify-center gap-1.5">
+                <i data-feather="key" class="w-3.5 h-3.5"></i>
+                <span>Your credentials are encrypted and stored securely.</span>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { 
+            getAuth, 
+            signInWithEmailAndPassword, 
+            createUserWithEmailAndPassword, 
+            sendPasswordResetEmail, 
+            onAuthStateChanged,
+            signOut 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+        // Initialize Firebase
+        let app, auth;
+        try {
+            const firebaseConfig = typeof __firebase_config !== 'undefined' 
+                ? JSON.parse(__firebase_config) 
+                : {
+                    apiKey: "YOUR_API_KEY",
+                    authDomain: "YOUR_AUTH_DOMAIN",
+                    projectId: "YOUR_PROJECT_ID",
+                    storageBucket: "YOUR_STORAGE_BUCKET",
+                    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+                    appId: "YOUR_APP_ID"
+                };
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+        } catch (error) {
+            console.error("Firebase initialization error:", error);
+            showError("Failed to initialize authentication service.");
+        }
+
+        // Initialize Feather Icons
+        feather.replace();
+
+        // State variables
+        let currentAuthMode = 'login'; // 'login', 'register', 'reset'
+        let isPasswordVisible = false;
+        let isSubmitting = false;
+
+        // DOM Elements
+        const views = {
+            loading: document.getElementById('loading-view'),
+            auth: document.getElementById('auth-view'),
+            dashboard: document.getElementById('authenticated-view')
+        };
+        
+        const elements = {
+            form: document.getElementById('auth-form'),
+            emailInput: document.getElementById('email'),
+            passwordInput: document.getElementById('password'),
+            passwordContainer: document.getElementById('password-container'),
+            
+            togglePasswordBtn: document.getElementById('toggle-password-btn'),
+            forgotPasswordBtn: document.getElementById('forgot-password-btn'),
+            toggleModeBtn: document.getElementById('toggle-mode-btn'),
+            logoutBtn: document.getElementById('logout-btn'),
+            
+            submitBtn: document.getElementById('submit-btn'),
+            submitText: document.getElementById('submit-text'),
+            submitSpinner: document.getElementById('submit-spinner'),
+            submitIcon: document.getElementById('submit-icon'),
+            
+            authTitle: document.getElementById('auth-title'),
+            dividerText: document.getElementById('divider-text'),
+            
+            errorAlert: document.getElementById('error-alert'),
+            errorMessage: document.getElementById('errorMessage'), // Fixed ID mapping
+            successAlert: document.getElementById('success-alert'),
+            successMessage: document.getElementById('successMessage'), // Fixed ID mapping
+            
+            userEmailDisplay: document.getElementById('user-email-display'),
+            userUidDisplay: document.getElementById('user-uid-display')
+        };
+        
+        // Fix ID mapping for dynamic text insertion
+        const errorMessageEl = document.getElementById('error-message');
+        const successMessageEl = document.getElementById('success-message');
+
+        function showView(viewName) {
+            Object.values(views).forEach(v => {
+                if (v) {
+                    v.classList.add('hidden');
+                    v.classList.remove('flex'); // Remove flex if it was used for centering
+                }
+            });
+            if (views[viewName]) {
+                views[viewName].classList.remove('hidden');
+                if (viewName === 'auth' || viewName === 'loading') {
+                     views[viewName].classList.add('flex');
+                }
+            }
+        }
+
+        function showError(msg) {
+            elements.successAlert.classList.add('hidden');
+            if (msg) {
+                errorMessageEl.textContent = msg;
+                elements.errorAlert.classList.remove('hidden');
+            } else {
+                elements.errorAlert.classList.add('hidden');
+            }
+        }
+
+        function showSuccess(msg) {
+            elements.errorAlert.classList.add('hidden');
+            if (msg) {
+                successMessageEl.textContent = msg;
+                elements.successAlert.classList.remove('hidden');
+            } else {
+                elements.successAlert.classList.add('hidden');
+            }
+        }
+
+        function setSubmitting(state) {
+            isSubmitting = state;
+            elements.submitBtn.disabled = state;
+            
+            if (state) {
+                elements.submitBtn.classList.add('opacity-75', 'cursor-not-allowed');
+                elements.submitText.classList.add('hidden');
+                elements.submitIcon.classList.add('hidden');
+                elements.submitSpinner.classList.remove('hidden');
+            } else {
+                elements.submitBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+                elements.submitText.classList.remove('hidden');
+                elements.submitIcon.classList.remove('hidden');
+                elements.submitSpinner.classList.add('hidden');
+            }
+        }
+
+        function updateUIForMode() {
+            showError('');
+            showSuccess('');
+            elements.passwordInput.value = '';
+
+            if (currentAuthMode === 'login') {
+                elements.authTitle.textContent = 'Sign in to your account';
+                elements.passwordContainer.classList.remove('hidden');
+                elements.passwordInput.required = true;
+                elements.forgotPasswordBtn.classList.remove('hidden');
+                elements.submitText.textContent = 'Sign in';
+                elements.dividerText.textContent = 'New here?';
+                elements.toggleModeBtn.textContent = 'Create a new account';
+                elements.passwordInput.setAttribute('autocomplete', 'current-password');
+            } else if (currentAuthMode === 'register') {
+                elements.authTitle.textContent = 'Create a secure account';
+                elements.passwordContainer.classList.remove('hidden');
+                elements.passwordInput.required = true;
+                elements.forgotPasswordBtn.classList.add('hidden');
+                elements.submitText.textContent = 'Create account';
+                elements.dividerText.textContent = 'Already have an account?';
+                elements.toggleModeBtn.textContent = 'Sign in to existing account';
+                elements.passwordInput.setAttribute('autocomplete', 'new-password');
+            } else if (currentAuthMode === 'reset') {
+                elements.authTitle.textContent = 'Reset your password';
+                elements.passwordContainer.classList.add('hidden');
+                elements.passwordInput.required = false; // Not needed for reset
+                elements.submitText.textContent = 'Send reset link';
+                elements.dividerText.textContent = 'Remembered your password?';
+                elements.toggleModeBtn.textContent = 'Back to sign in';
+            }
+            
+            // Re-render icons if needed by feather
+            feather.replace();
+        }
+
+        
+        // Password Visibility Toggle
+        elements.togglePasswordBtn.addEventListener('click', () => {
+            isPasswordVisible = !isPasswordVisible;
+            elements.passwordInput.type = isPasswordVisible ? 'text' : 'password';
+            
+            // Replace feather icon
+            const iconContainer = elements.togglePasswordBtn;
+            iconContainer.innerHTML = `<i data-feather="${isPasswordVisible ? 'eye-off' : 'eye'}" class="h-5 w-5"></i>`;
+            feather.replace();
+        });
+
+        // Mode Toggles
+        elements.toggleModeBtn.addEventListener('click', () => {
+            if (currentAuthMode === 'login') {
+                currentAuthMode = 'register';
+            } else {
+                currentAuthMode = 'login';
+            }
+            updateUIForMode();
+        });
+
+        elements.forgotPasswordBtn.addEventListener('click', () => {
+            currentAuthMode = 'reset';
+            updateUIForMode();
+        });
+
+        // Security: Generic error mapping
+        const getSecureErrorMessage = (errorCode) => {
+            switch (errorCode) {
+                case 'auth/user-not-found':
+                case 'auth/wrong-password':
+                case 'auth/invalid-credential':
+                    return 'Invalid email or password.';
+                case 'auth/too-many-requests':
+                    return 'Too many failed attempts. Please try again later.';
+                case 'auth/email-already-in-use':
+                    return 'An error occurred. Please try logging in instead.';
+                case 'auth/weak-password':
+                    return 'Password must be at least 6 characters long.';
+                case 'auth/invalid-email':
+                    return 'Please enter a valid email address.';
+                case 'auth/operation-not-allowed':
+                    return 'Email/Password auth is not enabled on this project.';
+                default:
+                    return 'An unexpected error occurred. Please try again.';
+            }
+        };
+
+        // Form Submission
+        elements.form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (isSubmitting || !auth) return;
+
+            const email = elements.emailInput.value.trim();
+            const password = elements.passwordInput.value;
+
+            // Basic Client Validation
+            if (!email || (currentAuthMode !== 'reset' && !password)) {
+                showError('Please fill in all required fields.');
+                return;
+            }
+            
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                showError('Please enter a valid email address.');
+                return;
+            }
+
+            setSubmitting(true);
+            showError('');
+            showSuccess('');
+
+            try {
+                if (currentAuthMode === 'login') {
+                    await signInWithEmailAndPassword(auth, email, password);
+                } else if (currentAuthMode === 'register') {
+                    await createUserWithEmailAndPassword(auth, email, password);
+                } else if (currentAuthMode === 'reset') {
+                    await sendPasswordResetEmail(auth, email);
+                    showSuccess('If an account exists, a password reset link has been sent.');
+                    // Optionally clear email or switch back to login
+                    // currentAuthMode = 'login';
+                    // updateUIForMode();
+                }
+            } catch (error) {
+                console.error("Auth Error:", error.code);
+                showError(getSecureErrorMessage(error.code));
+            } finally {
+                setSubmitting(false);
+            }
+        });
+
+        // Logout
+        elements.logoutBtn.addEventListener('click', async () => {
+            try {
+                await signOut(auth);
+            } catch (error) {
+                console.error("Logout Error:", error);
+                showError("Failed to sign out.");
+            }
+        });
+
+        // Auth State Listener
+        if (auth) {
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    // Update Dashboard UI
+                    elements.userEmailDisplay.textContent = user.email || 'Anonymous User';
+                    elements.userUidDisplay.textContent = user.uid;
+                    showView('dashboard');
+                    
+                    // Clear form for security
+                    elements.passwordInput.value = '';
+                } else {
+                    showView('auth');
+                    updateUIForMode(); // Ensure correct initial state
+                }
+            });
+        } else {
+            showError("Authentication service unavailable.");
+            showView('auth');
+        }
+
+    </script>
+</body>
+</html>
