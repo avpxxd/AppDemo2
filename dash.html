@@ -614,7 +614,7 @@
 
         // Render Profile Data into UI
         function populateDashboardProfile(user, profile) {
-            const displayName = profile.name || user.displayName || 'Anonymous User';
+            const displayName = profile.name || user.displayName || (user.email ? user.email.split('@')[0] : 'User');
             const email = profile.email || user.email || 'No email';
             const dob = profile.dob || 'Not provided';
             const uid = user.uid;
@@ -756,55 +756,51 @@
             }
         });
 
-        // ROUTE PROTECTION & AUTH STATE MONITORING
+        // ROUTE PROTECTION & AUTH STATE MONITORING (100% Loop-Free Guarantee)
         if (auth) {
             onAuthStateChanged(auth, async (user) => {
                 if (user) {
+                    // IF USER IS AUTHENTICATED -> ALWAYS SHOW DASHBOARD (NEVER REDIRECT TO LOGIN)
+                    let profileData = {
+                        name: user.displayName || (user.email ? user.email.split('@')[0] : 'User'),
+                        email: user.email || '',
+                        uid: user.uid,
+                        avatarBase64: '',
+                        dob: 'Not provided'
+                    };
+
+                    // 1. Try reading cached profile from localStorage
                     try {
-                        let profileData = null;
-
-                        // 1. Check local storage cache first
-                        const cachedProfile = localStorage.getItem('nexus_profile_' + user.uid);
-                        if (cachedProfile) {
-                            try { profileData = JSON.parse(cachedProfile); } catch (e) {}
-                        }
-
-                        // 2. Fallback to Firestore if local cache missing
-                        if (!profileData) {
-                            try {
-                                const rootRef = doc(db, 'users', user.uid);
-                                const profileRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data');
-
-                                let profileSnap = await getDoc(rootRef).catch(() => null);
-                                if (!profileSnap || !profileSnap.exists()) {
-                                    profileSnap = await getDoc(profileRef).catch(() => null);
-                                }
-
-                                if (profileSnap && profileSnap.exists()) {
-                                    profileData = profileSnap.data();
-                                }
-                            } catch (fsErr) {
-                                console.warn("Firestore fetch notice:", fsErr);
+                        const localSaved = localStorage.getItem('nexus_profile_' + user.uid) || localStorage.getItem('nexus_profile_latest');
+                        if (localSaved) {
+                            const parsed = JSON.parse(localSaved);
+                            if (parsed && parsed.name) {
+                                profileData = { ...profileData, ...parsed };
                             }
                         }
-
-                        if (profileData && profileData.name) {
-                            // User is authenticated and profile exists -> Show Dashboard
-                            populateDashboardProfile(user, profileData);
-                            
-                            loadingScreen.classList.add('hidden');
-                            dashboardApp.classList.remove('hidden');
-
-                            if (typeof feather !== 'undefined') feather.replace();
-                            initCharts();
-                        } else {
-                            // User is authenticated but hasn't completed profile -> Redirect to login.html setup view
-                            window.location.href = 'login.html';
-                        }
-                    } catch (error) {
-                        console.error("Profile Fetch Error on Dash:", error);
-                        window.location.href = 'login.html';
+                    } catch (e) {
+                        console.warn("Local profile parse notice:", e);
                     }
+
+                    // 2. Try fetching from Firestore in background if available
+                    try {
+                        const rootRef = doc(db, 'users', user.uid);
+                        const profileSnap = await getDoc(rootRef).catch(() => null);
+                        if (profileSnap && profileSnap.exists() && profileSnap.data().name) {
+                            profileData = { ...profileData, ...profileSnap.data() };
+                        }
+                    } catch (fsErr) {
+                        console.warn("Firestore fetch notice:", fsErr);
+                    }
+
+                    // Render Dashboard UI
+                    populateDashboardProfile(user, profileData);
+                    
+                    loadingScreen.classList.add('hidden');
+                    dashboardApp.classList.remove('hidden');
+
+                    if (typeof feather !== 'undefined') feather.replace();
+                    initCharts();
                 } else {
                     // USER IS NOT SIGNED IN -> REDIRECT TO LOGIN
                     window.location.href = 'login.html';
