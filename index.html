@@ -3,63 +3,156 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Secure Authentication</title>
+    <title>Secure Authentication & Profile</title>
     
+    <!-- 
+    ====================================================================
+    FIREBASE SETUP INSTRUCTIONS
+    ====================================================================
+    1. Create a Firebase Project (https://console.firebase.google.com/)
+    2. Enable Email/Password Authentication (Build > Authentication)
+    3. Enable Firestore Database (Build > Firestore Database)
+       - Start in Test Mode (or set rules to allow authenticated users to read/write their own data)
+    4. Register your Web App & paste the config below.
+    ====================================================================
+    -->
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Custom Tailwind Configuration for theme variables if needed -->
     <script>
         tailwind.config = {
-            darkMode: 'media', // Defaults to OS setting, could be toggled via JS
+            darkMode: 'media',
             theme: {
                 extend: {
-                    colors: {
-                        slate: {
-                            850: '#151e2e',
-                        }
-                    }
+                    colors: { slate: { 850: '#151e2e' } }
                 }
             }
         }
     </script>
     
-    <!-- Feather Icons (Lightweight alternative to Lucide for Vanilla JS) -->
+    <!-- Feather Icons -->
     <script src="https://unpkg.com/feather-icons"></script>
 </head>
 <body class="bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 min-h-screen font-sans transition-colors duration-200">
 
+    <!-- Loading View -->
     <div id="loading-view" class="min-h-screen flex items-center justify-center fixed inset-0 bg-slate-50 dark:bg-slate-900 z-50">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <div class="flex flex-col items-center gap-4">
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
+            <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Loading secure environment...</p>
+        </div>
     </div>
 
-    <div id="authenticated-view" class="hidden min-h-screen flex items-center justify-center p-4">
+    <!-- Account Setup View (New Users) -->
+    <div id="setup-view" class="hidden min-h-screen flex items-center justify-center p-4">
         <div class="max-w-md w-full bg-white dark:bg-slate-800 rounded-2xl shadow-xl overflow-hidden p-8 border border-slate-200 dark:border-slate-700">
-            <div class="flex justify-center mb-6">
-                <div class="bg-green-100 dark:bg-green-900/30 p-3 rounded-full text-green-600 dark:text-green-400">
-                    <i data-feather="shield"></i>
-                </div>
+            <div class="text-center mb-8">
+                <h2 class="text-2xl font-bold text-slate-900 dark:text-white">Complete your profile</h2>
+                <p class="mt-2 text-sm text-slate-600 dark:text-slate-400">Let's get you set up before you enter the dashboard.</p>
             </div>
-            <h2 class="text-2xl font-bold text-center mb-2">Securely Logged In</h2>
-            <p id="user-email-display" class="text-center text-slate-500 dark:text-slate-400 mb-8 truncate">
-                Anonymous User
-            </p>
+
+            <form id="setup-form" class="space-y-6">
+                <!-- Avatar Upload -->
+                <div class="flex flex-col items-center gap-4">
+                    <div class="relative group cursor-pointer">
+                        <div class="w-24 h-24 rounded-full overflow-hidden border-4 border-slate-100 dark:border-slate-700 bg-slate-200 dark:bg-slate-600 flex items-center justify-center">
+                            <img id="avatar-preview" src="https://placehold.co/150x150/e2e8f0/475569?text=+" alt="Avatar preview" class="w-full h-full object-cover hidden" />
+                            <i data-feather="camera" id="avatar-placeholder" class="w-8 h-8 text-slate-400"></i>
+                        </div>
+                        <div class="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <i data-feather="upload" class="w-6 h-6 text-white"></i>
+                        </div>
+                        <input type="file" id="avatar-upload" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                    </div>
+                    <p class="text-xs text-slate-500">Upload profile photo</p>
+                </div>
+
+                <!-- Full Name -->
+                <div>
+                    <label for="setup-name" class="block text-sm font-medium text-slate-700 dark:text-slate-300">Full Name</label>
+                    <div class="mt-1 relative rounded-md shadow-sm">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i data-feather="user" class="h-5 w-5 text-slate-400"></i>
+                        </div>
+                        <input id="setup-name" type="text" required
+                            class="block w-full pl-10 pr-3 py-3 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-slate-900 text-slate-900 dark:text-white transition-colors"
+                            placeholder="John Doe">
+                    </div>
+                </div>
+
+                <!-- Date of Birth -->
+                <div>
+                    <label for="setup-dob" class="block text-sm font-medium text-slate-700 dark:text-slate-300">Date of Birth</label>
+                    <div class="mt-1 relative rounded-md shadow-sm">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i data-feather="calendar" class="h-5 w-5 text-slate-400"></i>
+                        </div>
+                        <input id="setup-dob" type="date" required
+                            class="block w-full pl-10 pr-3 py-3 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-slate-900 text-slate-900 dark:text-white transition-colors [&::-webkit-calendar-picker-indicator]:dark:filter [&::-webkit-calendar-picker-indicator]:dark:invert">
+                    </div>
+                </div>
+
+                <div id="setup-error" class="hidden text-sm text-red-500 text-center"></div>
+
+                <button type="submit" id="setup-submit-btn" class="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all">
+                    <span id="setup-submit-text">Save Profile</span>
+                    <div id="setup-submit-spinner" class="hidden animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Authenticated User Dashboard -->
+    <div id="authenticated-view" class="hidden min-h-screen flex items-center justify-center p-4">
+        <div class="max-w-md w-full bg-white dark:bg-slate-800 rounded-2xl shadow-xl overflow-hidden border border-slate-200 dark:border-slate-700">
+            <!-- Profile Header Background -->
+            <div class="h-32 bg-gradient-to-r from-indigo-500 to-purple-600 relative">
+                <button id="logout-btn" class="absolute top-4 right-4 bg-white/20 hover:bg-white/30 text-white p-2 rounded-lg backdrop-blur-sm transition-colors" title="Sign Out">
+                    <i data-feather="log-out" class="w-5 h-5"></i>
+                </button>
+            </div>
             
-            <div class="space-y-4">
-                <div class="bg-slate-100 dark:bg-slate-700/50 rounded-lg p-4 text-sm break-all font-mono text-slate-600 dark:text-slate-300">
-                    <span class="font-semibold block mb-1">Session UID:</span>
-                    <span id="user-uid-display"></span>
+            <div class="px-8 pb-8">
+                <!-- Avatar Positioned over header -->
+                <div class="relative -mt-16 mb-4 flex justify-center">
+                    <div class="w-32 h-32 rounded-full border-4 border-white dark:border-slate-800 bg-slate-200 overflow-hidden shadow-lg">
+                        <img id="display-avatar" src="" alt="Profile Photo" class="w-full h-full object-cover" />
+                    </div>
                 </div>
                 
-                <button id="logout-btn" class="w-full flex items-center justify-center gap-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 py-3 rounded-xl font-medium transition-colors">
-                    <i data-feather="log-out" class="w-4 h-4"></i>
-                    Sign Out
-                </button>
+                <div class="text-center mb-8">
+                    <h2 id="display-name" class="text-3xl font-bold text-slate-900 dark:text-white">Loading...</h2>
+                    <p id="user-email-display" class="text-slate-500 dark:text-slate-400 mt-1"></p>
+                </div>
+                
+                <div class="space-y-4">
+                    <div class="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 flex items-center gap-4 border border-slate-100 dark:border-slate-700/50">
+                        <div class="bg-indigo-100 dark:bg-indigo-900/50 p-2.5 rounded-lg text-indigo-600 dark:text-indigo-400">
+                            <i data-feather="calendar" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Date of Birth</p>
+                            <p id="display-dob" class="text-sm font-semibold text-slate-800 dark:text-slate-200">-</p>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 flex items-center gap-4 border border-slate-100 dark:border-slate-700/50">
+                        <div class="bg-indigo-100 dark:bg-indigo-900/50 p-2.5 rounded-lg text-indigo-600 dark:text-indigo-400">
+                            <i data-feather="shield" class="w-5 h-5"></i>
+                        </div>
+                        <div class="overflow-hidden w-full">
+                            <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Security Token (UID)</p>
+                            <p id="user-uid-display" class="text-xs font-mono text-slate-600 dark:text-slate-300 truncate w-full">-</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
+    <!-- Auth View (Login / Register / Reset) -->
     <div id="auth-view" class="hidden min-h-screen flex-col justify-center py-12 sm:px-6 lg:px-8">
+        <!-- Exact same Auth form UI as before -->
         <div class="sm:mx-auto sm:w-full sm:max-w-md">
             <div class="flex justify-center text-indigo-600 dark:text-indigo-400 mb-4">
                 <i data-feather="shield" class="w-12 h-12"></i>
@@ -75,7 +168,6 @@
         <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
             <div class="bg-white dark:bg-slate-800 py-8 px-4 shadow-xl sm:rounded-2xl sm:px-10 border border-slate-200 dark:border-slate-700">
                 
-                <!-- Feedback Alerts -->
                 <div id="error-alert" class="hidden mb-6 bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 p-4 rounded-md flex items-start gap-3">
                     <i data-feather="alert-circle" class="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0"></i>
                     <p id="error-message" class="text-sm text-red-700 dark:text-red-300"></p>
@@ -87,11 +179,8 @@
                 </div>
 
                 <form id="auth-form" class="space-y-6">
-                    <!-- Email Field -->
                     <div>
-                        <label for="email" class="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                            Email address
-                        </label>
+                        <label for="email" class="block text-sm font-medium text-slate-700 dark:text-slate-300">Email address</label>
                         <div class="mt-1 relative rounded-md shadow-sm">
                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                 <i data-feather="mail" class="h-5 w-5 text-slate-400"></i>
@@ -102,12 +191,9 @@
                         </div>
                     </div>
 
-                    <!-- Password Field (Hidden in Reset mode) -->
                     <div id="password-container">
                         <div class="flex items-center justify-between">
-                            <label for="password" class="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                                Password
-                            </label>
+                            <label for="password" class="block text-sm font-medium text-slate-700 dark:text-slate-300">Password</label>
                             <button type="button" id="forgot-password-btn" class="text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">
                                 Forgot password?
                             </button>
@@ -119,13 +205,12 @@
                             <input id="password" name="password" type="password" autocomplete="current-password"
                                 class="block w-full pl-10 pr-10 py-3 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-slate-900 text-slate-900 dark:text-white transition-colors"
                                 placeholder="••••••••">
-                            <button type="button" id="toggle-password-btn" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 focus:outline-none" aria-label="Toggle password visibility">
+                            <button type="button" id="toggle-password-btn" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 focus:outline-none">
                                 <i data-feather="eye" id="eye-icon" class="h-5 w-5"></i>
                             </button>
                         </div>
                     </div>
 
-                    <!-- Submit Button -->
                     <button type="submit" id="submit-btn" class="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all">
                         <span id="submit-text">Sign in</span>
                         <div id="submit-spinner" class="hidden animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
@@ -139,12 +224,9 @@
                             <div class="w-full border-t border-slate-200 dark:border-slate-700"></div>
                         </div>
                         <div class="relative flex justify-center text-sm">
-                            <span id="divider-text" class="px-2 bg-white dark:bg-slate-800 text-slate-500">
-                                New here?
-                            </span>
+                            <span id="divider-text" class="px-2 bg-white dark:bg-slate-800 text-slate-500">New here?</span>
                         </div>
                     </div>
-
                     <div class="mt-6 flex justify-center">
                         <button type="button" id="toggle-mode-btn" class="text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 font-medium transition-colors">
                             Create a new account
@@ -152,253 +234,193 @@
                     </div>
                 </div>
             </div>
-            
-            <!-- Security Info Footer -->
-            <div class="mt-8 text-center text-xs text-slate-500 dark:text-slate-400 flex items-center justify-center gap-1.5">
+            <div class="mt-8 text-center text-xs text-slate-500 flex items-center justify-center gap-1.5">
                 <i data-feather="key" class="w-3.5 h-3.5"></i>
-                <span>Your credentials are encrypted and stored securely.</span>
+                <span>Credentials & Data are encrypted.</span>
             </div>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { 
-            getAuth, 
-            signInWithEmailAndPassword, 
-            createUserWithEmailAndPassword, 
-            sendPasswordResetEmail, 
-            onAuthStateChanged,
-            signOut 
-        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        // New: Import Firestore for storing profile data
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Initialize Firebase
-        let app, auth;
+        // Global Environment Variables
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyArDjUJZpG3c6FgR7KqvlPkDLaaqZG5jxQ",
+            authDomain: "signingtest-1467f.firebaseapp.com",
+            projectId: "signingtest-1467f",
+            storageBucket: "signingtest-1467f.firebasestorage.app",
+            messagingSenderId: "1097902622079",
+            appId: "1:1097902622079:web:311c1b0f2d80d0b1f3464a"
+        };
+
+        let app, auth, db;
         try {
-            const firebaseConfig = typeof __firebase_config !== 'undefined' 
-                ? JSON.parse(__firebase_config) 
-                : {
-                    apiKey: "AIzaSyArDjUJZpG3c6FgR7KqvlPkDLaaqZG5jxQ",
-                    authDomain: "signingtest-1467f.firebaseapp.com",
-                    projectId: "signingtest-1467f",
-                    storageBucket: "signingtest-1467f.firebasestorage.app",
-                    messagingSenderId: "1097902622079",
-                    appId: "1:1097902622079:web:311c1b0f2d80d0b1f3464a"
-                };
-            app = initializeApp(firebaseConfig);
+            const configToUse = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfig;
+            app = initializeApp(configToUse);
             auth = getAuth(app);
+            db = getFirestore(app);
         } catch (error) {
-            console.error("Firebase initialization error:", error);
-            showError("Failed to initialize authentication service.");
+            console.error("Firebase init error:", error);
         }
 
-        // Initialize Feather Icons
+        // Initialize Icons
         feather.replace();
 
-        // State variables
-        let currentAuthMode = 'login'; // 'login', 'register', 'reset'
+        // Application State
+        let currentAuthMode = 'login'; 
         let isPasswordVisible = false;
         let isSubmitting = false;
+        let avatarBase64 = null; // Stores profile image as Base64 string
 
         // DOM Elements
         const views = {
             loading: document.getElementById('loading-view'),
             auth: document.getElementById('auth-view'),
+            setup: document.getElementById('setup-view'),
             dashboard: document.getElementById('authenticated-view')
         };
         
-        const elements = {
+        const ui = {
+            // Auth Form
             form: document.getElementById('auth-form'),
             emailInput: document.getElementById('email'),
             passwordInput: document.getElementById('password'),
             passwordContainer: document.getElementById('password-container'),
-            
             togglePasswordBtn: document.getElementById('toggle-password-btn'),
             forgotPasswordBtn: document.getElementById('forgot-password-btn'),
             toggleModeBtn: document.getElementById('toggle-mode-btn'),
-            logoutBtn: document.getElementById('logout-btn'),
-            
             submitBtn: document.getElementById('submit-btn'),
             submitText: document.getElementById('submit-text'),
             submitSpinner: document.getElementById('submit-spinner'),
             submitIcon: document.getElementById('submit-icon'),
-            
             authTitle: document.getElementById('auth-title'),
             dividerText: document.getElementById('divider-text'),
-            
             errorAlert: document.getElementById('error-alert'),
-            errorMessage: document.getElementById('errorMessage'), // Fixed ID mapping
+            errorMessage: document.getElementById('error-message'), 
             successAlert: document.getElementById('success-alert'),
-            successMessage: document.getElementById('successMessage'), // Fixed ID mapping
+            successMessage: document.getElementById('success-message'), 
             
+            // Dashboard
+            logoutBtn: document.getElementById('logout-btn'),
             userEmailDisplay: document.getElementById('user-email-display'),
-            userUidDisplay: document.getElementById('user-uid-display')
+            userUidDisplay: document.getElementById('user-uid-display'),
+            displayAvatar: document.getElementById('display-avatar'),
+            displayName: document.getElementById('display-name'),
+            displayDob: document.getElementById('display-dob'),
+
+            // Setup Form
+            setupForm: document.getElementById('setup-form'),
+            avatarUpload: document.getElementById('avatar-upload'),
+            avatarPreview: document.getElementById('avatar-preview'),
+            avatarPlaceholder: document.getElementById('avatar-placeholder'),
+            setupName: document.getElementById('setup-name'),
+            setupDob: document.getElementById('setup-dob'),
+            setupSubmitBtn: document.getElementById('setup-submit-btn'),
+            setupSubmitText: document.getElementById('setup-submit-text'),
+            setupSubmitSpinner: document.getElementById('setup-submit-spinner'),
+            setupError: document.getElementById('setup-error')
         };
         
-        // Fix ID mapping for dynamic text insertion
-        const errorMessageEl = document.getElementById('error-message');
-        const successMessageEl = document.getElementById('success-message');
-
         function showView(viewName) {
             Object.values(views).forEach(v => {
-                if (v) {
-                    v.classList.add('hidden');
-                    v.classList.remove('flex'); // Remove flex if it was used for centering
-                }
+                if (v) { v.classList.add('hidden'); v.classList.remove('flex'); }
             });
             if (views[viewName]) {
                 views[viewName].classList.remove('hidden');
-                if (viewName === 'auth' || viewName === 'loading') {
-                     views[viewName].classList.add('flex');
-                }
+                if (viewName !== 'dashboard') views[viewName].classList.add('flex');
             }
         }
 
-        function showError(msg) {
-            elements.successAlert.classList.add('hidden');
-            if (msg) {
-                errorMessageEl.textContent = msg;
-                elements.errorAlert.classList.remove('hidden');
-            } else {
-                elements.errorAlert.classList.add('hidden');
-            }
-        }
-
-        function showSuccess(msg) {
-            elements.errorAlert.classList.add('hidden');
-            if (msg) {
-                successMessageEl.textContent = msg;
-                elements.successAlert.classList.remove('hidden');
-            } else {
-                elements.successAlert.classList.add('hidden');
-            }
-        }
-
-        function setSubmitting(state) {
-            isSubmitting = state;
-            elements.submitBtn.disabled = state;
+        function showAlert(type, msg) {
+            ui.errorAlert.classList.add('hidden');
+            ui.successAlert.classList.add('hidden');
+            if (!msg) return;
             
-            if (state) {
-                elements.submitBtn.classList.add('opacity-75', 'cursor-not-allowed');
-                elements.submitText.classList.add('hidden');
-                elements.submitIcon.classList.add('hidden');
-                elements.submitSpinner.classList.remove('hidden');
+            if (type === 'error') {
+                ui.errorMessage.textContent = msg;
+                ui.errorAlert.classList.remove('hidden');
             } else {
-                elements.submitBtn.classList.remove('opacity-75', 'cursor-not-allowed');
-                elements.submitText.classList.remove('hidden');
-                elements.submitIcon.classList.remove('hidden');
-                elements.submitSpinner.classList.add('hidden');
+                ui.successMessage.textContent = msg;
+                ui.successAlert.classList.remove('hidden');
             }
         }
 
         function updateUIForMode() {
-            showError('');
-            showSuccess('');
-            elements.passwordInput.value = '';
+            showAlert(null);
+            ui.passwordInput.value = '';
 
             if (currentAuthMode === 'login') {
-                elements.authTitle.textContent = 'Sign in to your account';
-                elements.passwordContainer.classList.remove('hidden');
-                elements.passwordInput.required = true;
-                elements.forgotPasswordBtn.classList.remove('hidden');
-                elements.submitText.textContent = 'Sign in';
-                elements.dividerText.textContent = 'New here?';
-                elements.toggleModeBtn.textContent = 'Create a new account';
-                elements.passwordInput.setAttribute('autocomplete', 'current-password');
+                ui.authTitle.textContent = 'Sign in to your account';
+                ui.passwordContainer.classList.remove('hidden');
+                ui.passwordInput.required = true;
+                ui.forgotPasswordBtn.classList.remove('hidden');
+                ui.submitText.textContent = 'Sign in';
+                ui.dividerText.textContent = 'New here?';
+                ui.toggleModeBtn.textContent = 'Create a new account';
             } else if (currentAuthMode === 'register') {
-                elements.authTitle.textContent = 'Create a secure account';
-                elements.passwordContainer.classList.remove('hidden');
-                elements.passwordInput.required = true;
-                elements.forgotPasswordBtn.classList.add('hidden');
-                elements.submitText.textContent = 'Create account';
-                elements.dividerText.textContent = 'Already have an account?';
-                elements.toggleModeBtn.textContent = 'Sign in to existing account';
-                elements.passwordInput.setAttribute('autocomplete', 'new-password');
+                ui.authTitle.textContent = 'Create a secure account';
+                ui.passwordContainer.classList.remove('hidden');
+                ui.passwordInput.required = true;
+                ui.forgotPasswordBtn.classList.add('hidden');
+                ui.submitText.textContent = 'Create account';
+                ui.dividerText.textContent = 'Already have an account?';
+                ui.toggleModeBtn.textContent = 'Sign in to existing account';
             } else if (currentAuthMode === 'reset') {
-                elements.authTitle.textContent = 'Reset your password';
-                elements.passwordContainer.classList.add('hidden');
-                elements.passwordInput.required = false; // Not needed for reset
-                elements.submitText.textContent = 'Send reset link';
-                elements.dividerText.textContent = 'Remembered your password?';
-                elements.toggleModeBtn.textContent = 'Back to sign in';
+                ui.authTitle.textContent = 'Reset your password';
+                ui.passwordContainer.classList.add('hidden');
+                ui.passwordInput.required = false;
+                ui.submitText.textContent = 'Send reset link';
+                ui.dividerText.textContent = 'Remembered your password?';
+                ui.toggleModeBtn.textContent = 'Back to sign in';
             }
-            
-            // Re-render icons if needed by feather
             feather.replace();
         }
 
-        
-        // Password Visibility Toggle
-        elements.togglePasswordBtn.addEventListener('click', () => {
+        // Toggles
+        ui.togglePasswordBtn.addEventListener('click', () => {
             isPasswordVisible = !isPasswordVisible;
-            elements.passwordInput.type = isPasswordVisible ? 'text' : 'password';
-            
-            // Replace feather icon
-            const iconContainer = elements.togglePasswordBtn;
-            iconContainer.innerHTML = `<i data-feather="${isPasswordVisible ? 'eye-off' : 'eye'}" class="h-5 w-5"></i>`;
+            ui.passwordInput.type = isPasswordVisible ? 'text' : 'password';
+            ui.togglePasswordBtn.innerHTML = `<i data-feather="${isPasswordVisible ? 'eye-off' : 'eye'}" class="h-5 w-5"></i>`;
             feather.replace();
         });
 
-        // Mode Toggles
-        elements.toggleModeBtn.addEventListener('click', () => {
-            if (currentAuthMode === 'login') {
-                currentAuthMode = 'register';
-            } else {
-                currentAuthMode = 'login';
-            }
+        ui.toggleModeBtn.addEventListener('click', () => {
+            currentAuthMode = currentAuthMode === 'login' ? 'register' : 'login';
             updateUIForMode();
         });
 
-        elements.forgotPasswordBtn.addEventListener('click', () => {
+        ui.forgotPasswordBtn.addEventListener('click', () => {
             currentAuthMode = 'reset';
             updateUIForMode();
         });
 
-        // Security: Generic error mapping
-        const getSecureErrorMessage = (errorCode) => {
-            switch (errorCode) {
-                case 'auth/user-not-found':
-                case 'auth/wrong-password':
-                case 'auth/invalid-credential':
-                    return 'Invalid email or password.';
-                case 'auth/too-many-requests':
-                    return 'Too many failed attempts. Please try again later.';
-                case 'auth/email-already-in-use':
-                    return 'An error occurred. Please try logging in instead.';
-                case 'auth/weak-password':
-                    return 'Password must be at least 6 characters long.';
-                case 'auth/invalid-email':
-                    return 'Please enter a valid email address.';
-                case 'auth/operation-not-allowed':
-                    return 'Email/Password auth is not enabled on this project.';
-                default:
-                    return 'An unexpected error occurred. Please try again.';
-            }
+        const getSecureErrorMessage = (code) => {
+            if (code.includes('user-not-found') || code.includes('wrong-password') || code.includes('invalid-credential')) return 'Invalid email or password.';
+            if (code.includes('too-many-requests')) return 'Too many attempts. Please try again later.';
+            if (code.includes('email-already-in-use')) return 'An error occurred. Please try logging in.';
+            if (code.includes('weak-password')) return 'Password must be at least 6 characters.';
+            return 'An unexpected error occurred. Please try again.';
         };
 
-        // Form Submission
-        elements.form.addEventListener('submit', async (e) => {
+        ui.form.addEventListener('submit', async (e) => {
             e.preventDefault();
             if (isSubmitting || !auth) return;
 
-            const email = elements.emailInput.value.trim();
-            const password = elements.passwordInput.value;
+            const email = ui.emailInput.value.trim();
+            const password = ui.passwordInput.value;
 
-            // Basic Client Validation
-            if (!email || (currentAuthMode !== 'reset' && !password)) {
-                showError('Please fill in all required fields.');
-                return;
-            }
-            
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(email)) {
-                showError('Please enter a valid email address.');
-                return;
-            }
-
-            setSubmitting(true);
-            showError('');
-            showSuccess('');
+            isSubmitting = true;
+            ui.submitBtn.disabled = true;
+            ui.submitText.classList.add('hidden');
+            ui.submitIcon.classList.add('hidden');
+            ui.submitSpinner.classList.remove('hidden');
+            showAlert(null);
 
             try {
                 if (currentAuthMode === 'login') {
@@ -407,48 +429,133 @@
                     await createUserWithEmailAndPassword(auth, email, password);
                 } else if (currentAuthMode === 'reset') {
                     await sendPasswordResetEmail(auth, email);
-                    showSuccess('If an account exists, a password reset link has been sent.');
-                    // Optionally clear email or switch back to login
-                    // currentAuthMode = 'login';
-                    // updateUIForMode();
+                    showAlert('success', 'If an account exists, a reset link was sent.');
                 }
             } catch (error) {
-                console.error("Auth Error:", error.code);
-                showError(getSecureErrorMessage(error.code));
+                showAlert('error', getSecureErrorMessage(error.code));
             } finally {
-                setSubmitting(false);
+                isSubmitting = false;
+                ui.submitBtn.disabled = false;
+                ui.submitText.classList.remove('hidden');
+                ui.submitIcon.classList.remove('hidden');
+                ui.submitSpinner.classList.add('hidden');
             }
         });
 
-        // Logout
-        elements.logoutBtn.addEventListener('click', async () => {
+        ui.logoutBtn.addEventListener('click', () => signOut(auth));
+
+        // Image Upload to Base64 logic
+        ui.avatarUpload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Optional: Limit file size to 1MB to prevent large Firestore docs
+            if (file.size > 1024 * 1024) {
+                ui.setupError.textContent = "Image must be less than 1MB";
+                ui.setupError.classList.remove('hidden');
+                return;
+            }
+
+            ui.setupError.classList.add('hidden');
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                avatarBase64 = event.target.result;
+                ui.avatarPreview.src = avatarBase64;
+                ui.avatarPreview.classList.remove('hidden');
+                ui.avatarPlaceholder.classList.add('hidden');
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // Setup Form Submission
+        ui.setupForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const user = auth.currentUser;
+            if (!user) return;
+
+            const name = ui.setupName.value.trim();
+            const dob = ui.setupDob.value;
+
+            if (!name || !dob) {
+                ui.setupError.textContent = "Please fill in all fields.";
+                ui.setupError.classList.remove('hidden');
+                return;
+            }
+
+            ui.setupSubmitBtn.disabled = true;
+            ui.setupSubmitText.classList.add('hidden');
+            ui.setupSubmitSpinner.classList.remove('hidden');
+            ui.setupError.classList.add('hidden');
+
             try {
-                await signOut(auth);
+                // Rule 1: Using secure private user path
+                const profileRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data');
+                await setDoc(profileRef, {
+                    name,
+                    dob,
+                    avatarBase64: avatarBase64 || '',
+                    createdAt: new Date().toISOString()
+                });
+
+                // Transition to Dashboard immediately
+                populateDashboard(user, { name, dob, avatarBase64 });
+                showView('dashboard');
             } catch (error) {
-                console.error("Logout Error:", error);
-                showError("Failed to sign out.");
+                console.error("Profile Save Error:", error);
+                ui.setupError.textContent = "Failed to save profile. Please try again.";
+                ui.setupError.classList.remove('hidden');
+            } finally {
+                ui.setupSubmitBtn.disabled = false;
+                ui.setupSubmitText.classList.remove('hidden');
+                ui.setupSubmitSpinner.classList.add('hidden');
             }
         });
 
-        // Auth State Listener
+        function populateDashboard(user, profileData) {
+            ui.userEmailDisplay.textContent = user.email;
+            ui.userUidDisplay.textContent = user.uid;
+            ui.displayName.textContent = profileData.name || 'Anonymous User';
+            ui.displayDob.textContent = profileData.dob || 'Not provided';
+            
+            if (profileData.avatarBase64) {
+                ui.displayAvatar.src = profileData.avatarBase64;
+            } else {
+                // Generate a placeholder based on initials
+                const initial = (profileData.name || 'U').charAt(0).toUpperCase();
+                ui.displayAvatar.src = `https://placehold.co/150x150/4f46e5/ffffff?text=${initial}`;
+            }
+        }
+
         if (auth) {
-            onAuthStateChanged(auth, (user) => {
+            onAuthStateChanged(auth, async (user) => {
                 if (user) {
-                    // Update Dashboard UI
-                    elements.userEmailDisplay.textContent = user.email || 'Anonymous User';
-                    elements.userUidDisplay.textContent = user.uid;
-                    showView('dashboard');
-                    
-                    // Clear form for security
-                    elements.passwordInput.value = '';
+                    showView('loading');
+                    try {
+                        // Check if the user has completed their profile
+                        const profileRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data');
+                        const profileSnap = await getDoc(profileRef);
+
+                        if (profileSnap.exists()) {
+                            // User exists, show dashboard
+                            populateDashboard(user, profileSnap.data());
+                            showView('dashboard');
+                        } else {
+                            // New user, push to setup
+                            showView('setup');
+                        }
+                    } catch (error) {
+                        console.error("Profile Fetch Error:", error);
+                        // If Firestore rules fail, safely route back to setup/auth
+                        showView('setup'); 
+                    }
                 } else {
                     showView('auth');
-                    updateUIForMode(); // Ensure correct initial state
+                    updateUIForMode();
                 }
             });
         } else {
-            showError("Authentication service unavailable.");
             showView('auth');
+            showAlert('error', "Authentication service unavailable. Please check configuration.");
         }
 
     </script>
