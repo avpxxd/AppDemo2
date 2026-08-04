@@ -1,30 +1,36 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Secure Authentication & Profile</title>
-    
-    <!-- 
-    ====================================================================
-    FIREBASE SETUP INSTRUCTIONS
-    ====================================================================
-    1. Create a Firebase Project (https://console.firebase.google.com/)
-    2. Enable Email/Password Authentication (Build > Authentication)
-    3. Enable Firestore Database (Build > Firestore Database)
-       - Start in Test Mode (or set rules to allow authenticated users to read/write their own data)
-    4. Register your Web App & paste the config below.
-    ====================================================================
-    -->
+    <title>Nexus - Enterprise Dashboard</title>
+    <meta name="description" content="Nexus Analytics & Data Management Dashboard">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
-            darkMode: 'media',
+            darkMode: 'class',
             theme: {
                 extend: {
-                    colors: { slate: { 850: '#151e2e' } }
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        slate: { 850: '#151e2e', 950: '#0b0f19' },
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        }
+                    }
                 }
             }
         }
@@ -32,257 +38,429 @@
     
     <!-- Feather Icons -->
     <script src="https://unpkg.com/feather-icons"></script>
+    
+    <!-- Chart.js for analytics visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body class="bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 min-h-screen font-sans transition-colors duration-200">
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans antialiased flex flex-col selection:bg-brand-500 selection:text-white">
 
-    <!-- Loading View -->
-    <div id="loading-view" class="min-h-screen flex items-center justify-center fixed inset-0 bg-slate-50 dark:bg-slate-900 z-50">
-        <div class="flex flex-col items-center gap-4">
-            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
-            <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Loading secure environment...</p>
-        </div>
-    </div>
-
-    <!-- Account Setup View (New Users) -->
-    <div id="setup-view" class="hidden min-h-screen flex items-center justify-center p-4">
-        <div class="max-w-md w-full bg-white dark:bg-slate-800 rounded-2xl shadow-xl overflow-hidden p-8 border border-slate-200 dark:border-slate-700">
-            <div class="text-center mb-8">
-                <h2 class="text-2xl font-bold text-slate-900 dark:text-white">Complete your profile</h2>
-                <p class="mt-2 text-sm text-slate-600 dark:text-slate-400">Let's get you set up before you enter the dashboard.</p>
+    <!-- Loading Screen for Route Protection -->
+    <div id="loading-screen" class="fixed inset-0 bg-slate-950 z-50 flex flex-col items-center justify-center gap-4 transition-opacity duration-300">
+        <div class="relative flex items-center justify-center">
+            <div class="w-16 h-16 border-4 border-brand-500/20 border-t-brand-500 rounded-full animate-spin"></div>
+            <div class="absolute text-brand-500">
+                <i data-feather="lock" class="w-6 h-6"></i>
             </div>
-
-            <form id="setup-form" class="space-y-6">
-                <!-- Avatar Upload -->
-                <div class="flex flex-col items-center gap-4">
-                    <div class="relative group cursor-pointer">
-                        <div class="w-24 h-24 rounded-full overflow-hidden border-4 border-slate-100 dark:border-slate-700 bg-slate-200 dark:bg-slate-600 flex items-center justify-center">
-                            <img id="avatar-preview" src="https://placehold.co/150x150/e2e8f0/475569?text=+" alt="Avatar preview" class="w-full h-full object-cover hidden" />
-                            <i data-feather="camera" id="avatar-placeholder" class="w-8 h-8 text-slate-400"></i>
-                        </div>
-                        <div class="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <i data-feather="upload" class="w-6 h-6 text-white"></i>
-                        </div>
-                        <input type="file" id="avatar-upload" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                    </div>
-                    <p class="text-xs text-slate-500">Upload profile photo</p>
-                </div>
-
-                <!-- Full Name -->
-                <div>
-                    <label for="setup-name" class="block text-sm font-medium text-slate-700 dark:text-slate-300">Full Name</label>
-                    <div class="mt-1 relative rounded-md shadow-sm">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <i data-feather="user" class="h-5 w-5 text-slate-400"></i>
-                        </div>
-                        <input id="setup-name" type="text" required
-                            class="block w-full pl-10 pr-3 py-3 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-slate-900 text-slate-900 dark:text-white transition-colors"
-                            placeholder="John Doe">
-                    </div>
-                </div>
-
-                <!-- Date of Birth -->
-                <div>
-                    <label for="setup-dob" class="block text-sm font-medium text-slate-700 dark:text-slate-300">Date of Birth</label>
-                    <div class="mt-1 relative rounded-md shadow-sm">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <i data-feather="calendar" class="h-5 w-5 text-slate-400"></i>
-                        </div>
-                        <input id="setup-dob" type="date" required
-                            class="block w-full pl-10 pr-3 py-3 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-slate-900 text-slate-900 dark:text-white transition-colors [&::-webkit-calendar-picker-indicator]:dark:filter [&::-webkit-calendar-picker-indicator]:dark:invert">
-                    </div>
-                </div>
-
-                <div id="setup-error" class="hidden text-sm text-red-500 text-center"></div>
-
-                <button type="submit" id="setup-submit-btn" class="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all">
-                    <span id="setup-submit-text">Save Profile</span>
-                    <div id="setup-submit-spinner" class="hidden animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                </button>
-            </form>
         </div>
+        <p class="text-sm font-medium text-slate-400 animate-pulse">Verifying credentials & loading dashboard...</p>
     </div>
 
-    <!-- Authenticated User Dashboard -->
-    <div id="authenticated-view" class="hidden h-screen w-full bg-slate-50 dark:bg-slate-900 flex-col md:flex-row overflow-hidden">
+    <!-- Dashboard Main Layout Container -->
+    <div id="dashboard-app" class="hidden min-h-screen flex flex-col md:flex-row overflow-hidden">
         
-        <aside class="w-full md:w-64 bg-white dark:bg-slate-800 border-b md:border-b-0 md:border-r border-slate-200 dark:border-slate-700 flex-shrink-0 flex flex-col h-auto md:h-full z-10 relative">
-            <div class="p-6 flex items-center gap-3 border-b border-slate-100 dark:border-slate-700">
-                <div class="bg-indigo-600 p-2 rounded-lg text-white">
-                    <i data-feather="hexagon" class="w-5 h-5"></i>
+        <!-- Sidebar Navigation -->
+        <aside class="w-full md:w-64 bg-slate-950/80 border-b md:border-b-0 md:border-r border-slate-800 flex-shrink-0 flex flex-col justify-between z-20">
+            <div>
+                <!-- Brand Logo Header -->
+                <div class="p-6 flex items-center gap-3 border-b border-slate-800/80">
+                    <div class="bg-gradient-to-tr from-brand-600 to-indigo-500 p-2.5 rounded-xl text-white shadow-lg shadow-brand-500/20">
+                        <i data-feather="hexagon" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-bold text-white tracking-wide">Nexus</h1>
+                        <p class="text-[10px] text-brand-400 uppercase font-semibold tracking-wider">Enterprise OS</p>
+                    </div>
                 </div>
-                <span class="text-xl font-bold text-slate-900 dark:text-white">Nexus</span>
+
+                <!-- Navigation Menu -->
+                <nav class="p-4 space-y-1">
+                    <a href="#" class="flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl bg-brand-600/15 text-brand-400 border border-brand-500/20 transition-all">
+                        <i data-feather="grid" class="w-5 h-5"></i> Dashboard
+                    </a>
+                    <a href="#" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all">
+                        <i data-feather="bar-chart-2" class="w-5 h-5"></i> Analytics
+                    </a>
+                    <a href="#" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all">
+                        <i data-feather="users" class="w-5 h-5"></i> Customers
+                    </a>
+                    <a href="#" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all">
+                        <i data-feather="credit-card" class="w-5 h-5"></i> Transactions
+                    </a>
+                    <a href="#" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all">
+                        <i data-feather="settings" class="w-5 h-5"></i> Settings
+                    </a>
+                </nav>
             </div>
-            <nav class="p-4 space-y-1 flex-1 overflow-y-auto hidden md:block">
-                <a href="#" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400">
-                    <i data-feather="home" class="w-5 h-5"></i> Overview
-                </a>
-                <a href="#" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                    <i data-feather="bar-chart-2" class="w-5 h-5"></i> Analytics
-                </a>
-                <a href="#" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                    <i data-feather="users" class="w-5 h-5"></i> Team
-                </a>
-                <a href="#" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                    <i data-feather="settings" class="w-5 h-5"></i> Settings
-                </a>
-            </nav>
+
+            <!-- Bottom Storage / System Health widget -->
+            <div class="p-4 m-4 bg-slate-900 border border-slate-800 rounded-2xl">
+                <div class="flex items-center justify-between text-xs mb-2">
+                    <span class="text-slate-400 font-medium">Database Storage</span>
+                    <span class="text-brand-400 font-bold">64%</span>
+                </div>
+                <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                    <div class="h-full bg-gradient-to-r from-brand-600 to-indigo-400 w-[64%] rounded-full"></div>
+                </div>
+                <p class="text-[11px] text-slate-500 mt-2">12.8 GB of 20 GB used</p>
+            </div>
         </aside>
 
-        <main class="flex-1 flex flex-col h-full overflow-hidden min-w-0 bg-slate-50 dark:bg-slate-900">
+        <!-- Main Content Area -->
+        <main class="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto bg-slate-900">
             
-            <!-- Top Header -->
-            <header class="h-20 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-6 lg:px-8 flex-shrink-0 w-full z-10 relative">
-                <h1 class="text-2xl font-bold text-slate-900 dark:text-white hidden sm:block">Dashboard</h1>
-                
-                <div class="flex items-center gap-4 lg:gap-6 ml-auto">
-                    <button class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+            <!-- Header Bar -->
+            <header class="sticky top-0 z-30 bg-slate-950/80 backdrop-blur-md border-b border-slate-800 px-6 py-4 flex items-center justify-between gap-4">
+                <!-- Search bar -->
+                <div class="relative max-w-md w-full hidden sm:block">
+                    <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                        <i data-feather="search" class="w-4 h-4"></i>
+                    </div>
+                    <input type="text" id="global-search" placeholder="Search analytics, logs, reports..." 
+                        class="block w-full pl-10 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all">
+                </div>
+
+                <!-- User Profile & Top Right Actions -->
+                <div class="flex items-center gap-4 ml-auto">
+                    <!-- Notifications Button -->
+                    <button class="relative p-2.5 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl transition-all">
                         <i data-feather="bell" class="w-5 h-5"></i>
+                        <span class="absolute top-2 right-2 w-2.5 h-2.5 bg-brand-500 rounded-full ring-2 ring-slate-950"></span>
                     </button>
-                    
-                    <div class="h-8 w-px bg-slate-200 dark:bg-slate-700"></div>
-                    
+
+                    <div class="h-6 w-px bg-slate-800"></div>
+
+                    <!-- Profile Header Badge -->
                     <div class="flex items-center gap-3">
-                        <div class="text-right hidden sm:block">
-                            <!-- This will be populated by JS -->
-                            <p id="display-name" class="text-sm font-semibold text-slate-900 dark:text-white">Loading...</p>
-                            <p class="text-xs text-slate-500 dark:text-slate-400">Pro Member</p>
+                        <div class="relative">
+                            <img id="user-avatar" src="" alt="User Avatar" class="w-10 h-10 rounded-full border-2 border-brand-500/40 object-cover shadow-md bg-slate-800">
+                            <span class="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-slate-950 rounded-full"></span>
                         </div>
-                        <!-- Avatar populated by JS -->
-                        <img id="display-avatar" src="" alt="Profile Photo" class="w-10 h-10 rounded-full border-2 border-indigo-100 dark:border-indigo-900 object-cover shadow-sm" />
+                        <div class="hidden sm:block text-left">
+                            <p id="user-name" class="text-sm font-bold text-white leading-tight">Loading...</p>
+                            <div class="flex items-center gap-1.5 mt-0.5">
+                                <span class="px-1.5 py-0.5 bg-brand-500/20 text-brand-300 text-[10px] font-bold rounded uppercase">Pro Member</span>
+                            </div>
+                        </div>
                     </div>
 
-                    <button id="logout-btn" class="ml-2 flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
+                    <!-- Sign Out Button -->
+                    <button id="logout-btn" title="Sign Out"
+                        class="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-red-400 hover:text-white hover:bg-red-500/20 border border-red-500/30 rounded-xl transition-all cursor-pointer">
                         <i data-feather="log-out" class="w-4 h-4"></i>
-                        <span class="hidden sm:inline">Sign Out</span>
+                        <span class="hidden md:inline">Sign Out</span>
                     </button>
                 </div>
             </header>
 
-            <!-- Scrollable Page Content -->
-            <div class="flex-1 overflow-y-auto p-6 lg:p-8">
+            <!-- Dashboard Content Container -->
+            <div class="p-6 lg:p-8 space-y-8 max-w-7xl w-full mx-auto">
                 
-                <div class="max-w-6xl mx-auto space-y-8">
-                    <div>
-                        <h2 class="text-3xl font-bold text-slate-900 dark:text-white">Welcome back! 👋</h2>
-                        <p class="mt-2 text-slate-600 dark:text-slate-400">Here is a quick overview of your account and recent activity.</p>
-                    </div>
-
-                    <!-- Stats Grid -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 flex items-center gap-4 hover:shadow-md transition-shadow">
-                            <div class="bg-indigo-50 dark:bg-indigo-900/50 p-4 rounded-xl text-indigo-600 dark:text-indigo-400">
-                                <i data-feather="trending-up" class="w-6 h-6"></i>
+                <!-- Welcome Banner -->
+                <div class="relative overflow-hidden bg-gradient-to-r from-brand-600/30 via-slate-800 to-indigo-900/30 border border-brand-500/30 rounded-3xl p-6 sm:p-8 shadow-xl">
+                    <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                        <div>
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="px-2.5 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[11px] font-bold rounded-full flex items-center gap-1.5">
+                                    <span class="w-2 h-2 bg-emerald-400 rounded-full animate-ping"></span> Live Session
+                                </span>
+                                <span id="current-date" class="text-xs text-slate-400 font-medium"></span>
                             </div>
-                            <div>
-                                <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Total Revenue</p>
-                                <p class="text-2xl font-bold text-slate-900 dark:text-white">$12,450</p>
-                            </div>
+                            <h2 class="text-2xl sm:text-3xl font-extrabold text-white">
+                                Welcome back, <span id="banner-user-name" class="text-transparent bg-clip-text bg-gradient-to-r from-brand-400 to-indigo-300">User</span>! 👋
+                            </h2>
+                            <p class="mt-2 text-sm text-slate-300 max-w-xl">
+                                System performance is running at <strong class="text-emerald-400 font-semibold">99.98% uptime</strong>. Here is your latest real-time enterprise overview.
+                            </p>
                         </div>
-                        <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 flex items-center gap-4 hover:shadow-md transition-shadow">
-                            <div class="bg-green-50 dark:bg-green-900/50 p-4 rounded-xl text-green-600 dark:text-green-400">
-                                <i data-feather="users" class="w-6 h-6"></i>
-                            </div>
-                            <div>
-                                <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Active Users</p>
-                                <p class="text-2xl font-bold text-slate-900 dark:text-white">1,342</p>
-                            </div>
-                        </div>
-                        <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 flex items-center gap-4 hover:shadow-md transition-shadow">
-                            <div class="bg-purple-50 dark:bg-purple-900/50 p-4 rounded-xl text-purple-600 dark:text-purple-400">
-                                <i data-feather="activity" class="w-6 h-6"></i>
-                            </div>
-                            <div>
-                                <p class="text-sm font-medium text-slate-500 dark:text-slate-400">System Uptime</p>
-                                <p class="text-2xl font-bold text-slate-900 dark:text-white">99.9%</p>
-                            </div>
+                        <div class="flex items-center gap-3 flex-wrap">
+                            <button class="px-4 py-2.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-brand-600/30 transition-all flex items-center gap-2">
+                                <i data-feather="plus" class="w-4 h-4"></i> New Report
+                            </button>
+                            <button class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold rounded-xl transition-all flex items-center gap-2">
+                                <i data-feather="download" class="w-4 h-4"></i> Export Data
+                            </button>
                         </div>
                     </div>
+                </div>
 
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        
-                        <!-- Account Details Card -->
-                        <div class="lg:col-span-1 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-6">
-                            <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-4">Account Details</h3>
-                            <div class="space-y-4">
-                                <div>
-                                    <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Email Address</p>
-                                    <!-- Populated by JS -->
-                                    <p id="user-email-display" class="text-sm font-medium text-slate-800 dark:text-slate-200 mt-1">-</p>
+                <!-- KPI Metric Cards Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                    
+                    <!-- Card 1 -->
+                    <div class="bg-slate-850 border border-slate-800 rounded-2xl p-5 hover:border-brand-500/40 transition-all shadow-lg group">
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Revenue</span>
+                            <div class="p-2.5 bg-brand-500/10 text-brand-400 rounded-xl group-hover:scale-110 transition-transform">
+                                <i data-feather="dollar-sign" class="w-5 h-5"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-baseline justify-between">
+                            <h3 class="text-2xl font-extrabold text-white">$48,290.00</h3>
+                            <span class="inline-flex items-center gap-1 text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                                <i data-feather="trending-up" class="w-3 h-3"></i> +14.2%
+                            </span>
+                        </div>
+                        <p class="text-[11px] text-slate-500 mt-2">vs. $42,210 last month</p>
+                    </div>
+
+                    <!-- Card 2 -->
+                    <div class="bg-slate-850 border border-slate-800 rounded-2xl p-5 hover:border-brand-500/40 transition-all shadow-lg group">
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Active Users</span>
+                            <div class="p-2.5 bg-emerald-500/10 text-emerald-400 rounded-xl group-hover:scale-110 transition-transform">
+                                <i data-feather="users" class="w-5 h-5"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-baseline justify-between">
+                            <h3 class="text-2xl font-extrabold text-white">3,842</h3>
+                            <span class="inline-flex items-center gap-1 text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                                <i data-feather="trending-up" class="w-3 h-3"></i> +8.7%
+                            </span>
+                        </div>
+                        <p class="text-[11px] text-slate-500 mt-2">+304 new this week</p>
+                    </div>
+
+                    <!-- Card 3 -->
+                    <div class="bg-slate-850 border border-slate-800 rounded-2xl p-5 hover:border-brand-500/40 transition-all shadow-lg group">
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Conversion Rate</span>
+                            <div class="p-2.5 bg-purple-500/10 text-purple-400 rounded-xl group-hover:scale-110 transition-transform">
+                                <i data-feather="pie-chart" class="w-5 h-5"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-baseline justify-between">
+                            <h3 class="text-2xl font-extrabold text-white">4.65%</h3>
+                            <span class="inline-flex items-center gap-1 text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                                <i data-feather="trending-up" class="w-3 h-3"></i> +1.2%
+                            </span>
+                        </div>
+                        <p class="text-[11px] text-slate-500 mt-2">Optimal range (>4.0%)</p>
+                    </div>
+
+                    <!-- Card 4 -->
+                    <div class="bg-slate-850 border border-slate-800 rounded-2xl p-5 hover:border-brand-500/40 transition-all shadow-lg group">
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">System Health</span>
+                            <div class="p-2.5 bg-blue-500/10 text-blue-400 rounded-xl group-hover:scale-110 transition-transform">
+                                <i data-feather="activity" class="w-5 h-5"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-baseline justify-between">
+                            <h3 class="text-2xl font-extrabold text-white">99.98%</h3>
+                            <span class="inline-flex items-center gap-1 text-xs font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">
+                                Healthy
+                            </span>
+                        </div>
+                        <p class="text-[11px] text-slate-500 mt-2">Avg Latency: 42ms</p>
+                    </div>
+
+                </div>
+
+                <!-- Charts Section Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    
+                    <!-- Line Chart: Revenue Trend -->
+                    <div class="lg:col-span-2 bg-slate-850 border border-slate-800 rounded-3xl p-6 shadow-xl">
+                        <div class="flex items-center justify-between mb-6">
+                            <div>
+                                <h3 class="text-base font-bold text-white">Revenue Growth & Projections</h3>
+                                <p class="text-xs text-slate-400">Monthly financial performance breakdown</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-brand-500 inline-block"></span>
+                                <span class="text-xs text-slate-400 font-medium">Revenue ($)</span>
+                            </div>
+                        </div>
+                        <div class="h-64 w-full">
+                            <canvas id="revenueChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Doughnut Chart: Traffic Breakdown -->
+                    <div class="bg-slate-850 border border-slate-800 rounded-3xl p-6 shadow-xl flex flex-col justify-between">
+                        <div>
+                            <h3 class="text-base font-bold text-white mb-1">Traffic & Device Share</h3>
+                            <p class="text-xs text-slate-400 mb-4">User distribution by platform</p>
+                        </div>
+                        <div class="h-48 w-full relative flex items-center justify-center">
+                            <canvas id="deviceChart"></canvas>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-slate-800 text-xs">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2.5 h-2.5 rounded-full bg-brand-500"></span>
+                                <span class="text-slate-300">Desktop (55%)</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="w-2.5 h-2.5 rounded-full bg-indigo-400"></span>
+                                <span class="text-slate-300">Mobile (32%)</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="w-2.5 h-2.5 rounded-full bg-purple-400"></span>
+                                <span class="text-slate-300">Tablet (8%)</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                                <span class="text-slate-300">API/Other (5%)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Account & Firestore Profile Details + Transactions Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    
+                    <!-- Left: Profile Info Card -->
+                    <div class="bg-slate-850 border border-slate-800 rounded-3xl p-6 shadow-xl flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+                                <h3 class="text-base font-bold text-white">Profile Credentials</h3>
+                                <span class="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold rounded uppercase">Verified</span>
+                            </div>
+
+                            <div class="flex flex-col items-center text-center my-4">
+                                <img id="card-avatar" src="" alt="Profile picture" class="w-20 h-20 rounded-full border-4 border-brand-500/30 object-cover shadow-xl mb-3 bg-slate-800">
+                                <h4 id="card-name" class="text-lg font-extrabold text-white">Full Name</h4>
+                                <p id="card-email" class="text-xs text-slate-400">email@domain.com</p>
+                            </div>
+
+                            <div class="space-y-3.5 text-xs">
+                                <div class="flex justify-between items-center py-2 border-b border-slate-800/60">
+                                    <span class="text-slate-400">Date of Birth</span>
+                                    <span id="card-dob" class="font-semibold text-white">1995-05-15</span>
                                 </div>
-                                <div>
-                                    <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Date of Birth</p>
-                                    <!-- Populated by JS -->
-                                    <p id="display-dob" class="text-sm font-medium text-slate-800 dark:text-slate-200 mt-1">-</p>
+                                <div class="flex justify-between items-center py-2 border-b border-slate-800/60">
+                                    <span class="text-slate-400">Account Created</span>
+                                    <span id="card-created" class="font-semibold text-white">Today</span>
                                 </div>
-                                <div>
-                                    <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Security Token (UID)</p>
-                                    <!-- Populated by JS -->
-                                    <p id="user-uid-display" class="text-xs font-mono text-slate-600 dark:text-slate-300 truncate mt-1 bg-slate-50 dark:bg-slate-900 p-2 rounded-lg border border-slate-100 dark:border-slate-700">-</p>
+                                <div class="py-2">
+                                    <span class="text-slate-400 block mb-1">Security Token (UID)</span>
+                                    <code id="card-uid" class="block w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-[11px] font-mono text-brand-300 truncate">--------------------</code>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Fake Data Table -->
-                        <div class="lg:col-span-2 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
-                            <div class="p-6 border-b border-slate-100 dark:border-slate-700">
-                                <h3 class="text-lg font-bold text-slate-900 dark:text-white">Recent Transactions</h3>
+                        <div class="mt-6">
+                            <a href="login.html" class="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2">
+                                <i data-feather="edit-2" class="w-3.5 h-3.5"></i> Edit Profile Details
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Right: Fake Analytics Data Table -->
+                    <div class="lg:col-span-2 bg-slate-850 border border-slate-800 rounded-3xl p-6 shadow-xl flex flex-col justify-between">
+                        <div>
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                                <div>
+                                    <h3 class="text-base font-bold text-white">Recent Financial Transactions</h3>
+                                    <p class="text-xs text-slate-400">Live transaction stream processed via Nexus Pay</p>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <input type="text" id="table-search" placeholder="Filter transactions..." 
+                                        class="px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-brand-500">
+                                </div>
                             </div>
+
                             <div class="overflow-x-auto">
                                 <table class="w-full text-left border-collapse">
                                     <thead>
-                                        <tr class="bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">
-                                            <th class="p-4 font-medium whitespace-nowrap">Transaction ID</th>
-                                            <th class="p-4 font-medium whitespace-nowrap">Date</th>
-                                            <th class="p-4 font-medium whitespace-nowrap">Amount</th>
-                                            <th class="p-4 font-medium whitespace-nowrap">Status</th>
+                                        <tr class="bg-slate-900/80 text-slate-400 text-[11px] font-semibold uppercase tracking-wider border-b border-slate-800">
+                                            <th class="p-3.5">Transaction ID</th>
+                                            <th class="p-3.5">Customer</th>
+                                            <th class="p-3.5">Plan</th>
+                                            <th class="p-3.5">Date</th>
+                                            <th class="p-3.5">Amount</th>
+                                            <th class="p-3.5 text-right">Status</th>
                                         </tr>
                                     </thead>
-                                    <tbody class="text-sm text-slate-700 dark:text-slate-300 divide-y divide-slate-100 dark:divide-slate-700">
-                                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                            <td class="p-4 font-mono text-xs text-slate-500">#TRX-9021</td>
-                                            <td class="p-4">Today, 2:45 PM</td>
-                                            <td class="p-4 font-medium text-slate-900 dark:text-white">$120.00</td>
-                                            <td class="p-4"><span class="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-1 rounded-full text-xs font-medium border border-green-200 dark:border-green-800">Completed</span></td>
+                                    <tbody id="transaction-rows" class="text-xs divide-y divide-slate-800/60 text-slate-300 font-medium">
+                                        <tr class="hover:bg-slate-800/40 transition-colors">
+                                            <td class="p-3.5 font-mono text-slate-400">#TXN-9082</td>
+                                            <td class="p-3.5 text-white font-semibold">Acme Corp</td>
+                                            <td class="p-3.5">Enterprise Annual</td>
+                                            <td class="p-3.5 text-slate-400">Today, 2:45 PM</td>
+                                            <td class="p-3.5 text-white font-bold">$2,499.00</td>
+                                            <td class="p-3.5 text-right">
+                                                <span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold rounded-full">Completed</span>
+                                            </td>
                                         </tr>
-                                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                            <td class="p-4 font-mono text-xs text-slate-500">#TRX-9020</td>
-                                            <td class="p-4">Yesterday, 9:30 AM</td>
-                                            <td class="p-4 font-medium text-slate-900 dark:text-white">$45.50</td>
-                                            <td class="p-4"><span class="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-1 rounded-full text-xs font-medium border border-green-200 dark:border-green-800">Completed</span></td>
+                                        <tr class="hover:bg-slate-800/40 transition-colors">
+                                            <td class="p-3.5 font-mono text-slate-400">#TXN-9081</td>
+                                            <td class="p-3.5 text-white font-semibold">Starlight Labs</td>
+                                            <td class="p-3.5">Pro Monthly</td>
+                                            <td class="p-3.5 text-slate-400">Today, 11:20 AM</td>
+                                            <td class="p-3.5 text-white font-bold">$149.00</td>
+                                            <td class="p-3.5 text-right">
+                                                <span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold rounded-full">Completed</span>
+                                            </td>
                                         </tr>
-                                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                            <td class="p-4 font-mono text-xs text-slate-500">#TRX-9019</td>
-                                            <td class="p-4">Aug 2, 2026</td>
-                                            <td class="p-4 font-medium text-slate-900 dark:text-white">$999.99</td>
-                                            <td class="p-4"><span class="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-2 py-1 rounded-full text-xs font-medium border border-yellow-200 dark:border-yellow-800">Pending</span></td>
+                                        <tr class="hover:bg-slate-800/40 transition-colors">
+                                            <td class="p-3.5 font-mono text-slate-400">#TXN-9080</td>
+                                            <td class="p-3.5 text-white font-semibold">Nova Digital</td>
+                                            <td class="p-3.5">API Credits Pack</td>
+                                            <td class="p-3.5 text-slate-400">Yesterday, 4:15 PM</td>
+                                            <td class="p-3.5 text-white font-bold">$500.00</td>
+                                            <td class="p-3.5 text-right">
+                                                <span class="px-2.5 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-bold rounded-full">Pending</span>
+                                            </td>
+                                        </tr>
+                                        <tr class="hover:bg-slate-800/40 transition-colors">
+                                            <td class="p-3.5 font-mono text-slate-400">#TXN-9079</td>
+                                            <td class="p-3.5 text-white font-semibold">Apex Systems</td>
+                                            <td class="p-3.5">Enterprise Monthly</td>
+                                            <td class="p-3.5 text-slate-400">Aug 2, 2026</td>
+                                            <td class="p-3.5 text-white font-bold">$499.00</td>
+                                            <td class="p-3.5 text-right">
+                                                <span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold rounded-full">Completed</span>
+                                            </td>
+                                        </tr>
+                                        <tr class="hover:bg-slate-800/40 transition-colors">
+                                            <td class="p-3.5 font-mono text-slate-400">#TXN-9078</td>
+                                            <td class="p-3.5 text-white font-semibold">Cyberdyne Inc</td>
+                                            <td class="p-3.5">Custom Tier</td>
+                                            <td class="p-3.5 text-slate-400">Aug 1, 2026</td>
+                                            <td class="p-3.5 text-white font-bold">$8,250.00</td>
+                                            <td class="p-3.5 text-right">
+                                                <span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold rounded-full">Completed</span>
+                                            </td>
                                         </tr>
                                     </tbody>
                                 </table>
                             </div>
                         </div>
 
+                        <div class="flex items-center justify-between mt-4 pt-4 border-t border-slate-800 text-xs text-slate-400">
+                            <span>Showing 5 of 124 transactions</span>
+                            <div class="flex items-center gap-2">
+                                <button class="px-3 py-1 bg-slate-900 border border-slate-800 rounded hover:bg-slate-800 transition-colors disabled:opacity-50">Prev</button>
+                                <button class="px-3 py-1 bg-slate-900 border border-slate-800 rounded hover:bg-slate-800 transition-colors">Next</button>
+                            </div>
+                        </div>
                     </div>
+
                 </div>
+
             </div>
         </main>
     </div>
 
+    <!-- Firebase SDK Modules -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        // New: Import Firestore for storing profile data
-        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Global Environment Variables
+        // Global Environment Variables & Config
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         
         const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_AUTH_DOMAIN",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_STORAGE_BUCKET",
-            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-            appId: "YOUR_APP_ID"
+          apiKey: "AIzaSyArDjUJZpG3c6FgR7KqvlPkDLaaqZG5jxQ",
+          authDomain: "signingtest-1467f.firebaseapp.com",
+          projectId: "signingtest-1467f",
+          storageBucket: "signingtest-1467f.firebasestorage.app",
+          messagingSenderId: "1097902622079",
+          appId: "1:1097902622079:web:311c1b0f2d80d0b1f3464a",
+          measurementId: "G-1CRQLGLKHE"
         };
 
         let app, auth, db;
@@ -292,325 +470,220 @@
             auth = getAuth(app);
             db = getFirestore(app);
         } catch (error) {
-            console.error("Firebase init error:", error);
+            console.error("Firebase Initialization Error:", error);
         }
 
-        // Initialize Icons
-        feather.replace();
+        // Feather Icons Initialization
+        if (typeof feather !== 'undefined') feather.replace();
 
-        // Application State
-        let currentAuthMode = 'login'; 
-        let isPasswordVisible = false;
-        let isSubmitting = false;
-        let avatarBase64 = null; // Stores profile image as Base64 string
+        // DOM elements
+        const loadingScreen = document.getElementById('loading-screen');
+        const dashboardApp = document.getElementById('dashboard-app');
+        const logoutBtn = document.getElementById('logout-btn');
 
-        // DOM Elements
-        const views = {
-            loading: document.getElementById('loading-view'),
-            auth: document.getElementById('auth-view'),
-            setup: document.getElementById('setup-view'),
-            dashboard: document.getElementById('authenticated-view')
-        };
+        // Header & Card Elements
+        const userNameEl = document.getElementById('user-name');
+        const bannerUserNameEl = document.getElementById('banner-user-name');
+        const userAvatarEl = document.getElementById('user-avatar');
         
-        const ui = {
-            // Auth Form
-            form: document.getElementById('auth-form'),
-            emailInput: document.getElementById('email'),
-            passwordInput: document.getElementById('password'),
-            passwordContainer: document.getElementById('password-container'),
-            togglePasswordBtn: document.getElementById('toggle-password-btn'),
-            forgotPasswordBtn: document.getElementById('forgot-password-btn'),
-            toggleModeBtn: document.getElementById('toggle-mode-btn'),
-            submitBtn: document.getElementById('submit-btn'),
-            submitText: document.getElementById('submit-text'),
-            submitSpinner: document.getElementById('submit-spinner'),
-            submitIcon: document.getElementById('submit-icon'),
-            authTitle: document.getElementById('auth-title'),
-            dividerText: document.getElementById('divider-text'),
-            errorAlert: document.getElementById('error-alert'),
-            errorMessage: document.getElementById('error-message'), 
-            successAlert: document.getElementById('success-alert'),
-            successMessage: document.getElementById('success-message'), 
+        const cardNameEl = document.getElementById('card-name');
+        const cardEmailEl = document.getElementById('card-email');
+        const cardAvatarEl = document.getElementById('card-avatar');
+        const cardDobEl = document.getElementById('card-dob');
+        const cardUidEl = document.getElementById('card-uid');
+        const cardCreatedEl = document.getElementById('card-created');
+        const currentDateEl = document.getElementById('current-date');
+
+        // Date Display
+        if (currentDateEl) {
+            const options = { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' };
+            currentDateEl.textContent = new Date().toLocaleDateString('en-US', options);
+        }
+
+        // Render Profile Data into UI
+        function populateDashboardProfile(user, profile) {
+            const displayName = profile.name || user.displayName || 'Anonymous User';
+            const email = profile.email || user.email || 'No email';
+            const dob = profile.dob || 'Not provided';
+            const uid = user.uid;
             
-            // Dashboard
-            logoutBtn: document.getElementById('logout-btn'),
-            userEmailDisplay: document.getElementById('user-email-display'),
-            userUidDisplay: document.getElementById('user-uid-display'),
-            displayAvatar: document.getElementById('display-avatar'),
-            displayName: document.getElementById('display-name'),
-            displayDob: document.getElementById('display-dob'),
+            // Avatar processing: Base64 profile photo -> fallback placeholder with user initials
+            let avatarSrc = profile.avatarBase64;
+            if (!avatarSrc) {
+                const initial = displayName.charAt(0).toUpperCase();
+                avatarSrc = `https://placehold.co/150x150/4f46e5/ffffff?text=${initial}`;
+            }
 
-            // Setup Form
-            setupForm: document.getElementById('setup-form'),
-            avatarUpload: document.getElementById('avatar-upload'),
-            avatarPreview: document.getElementById('avatar-preview'),
-            avatarPlaceholder: document.getElementById('avatar-placeholder'),
-            setupName: document.getElementById('setup-name'),
-            setupDob: document.getElementById('setup-dob'),
-            setupSubmitBtn: document.getElementById('setup-submit-btn'),
-            setupSubmitText: document.getElementById('setup-submit-text'),
-            setupSubmitSpinner: document.getElementById('setup-submit-spinner'),
-        setupError: document.getElementById('setup-error')
-    };
-    
-    function showView(viewName) {
-        Object.values(views).forEach(v => {
-            if (v) { v.classList.add('hidden'); v.classList.remove('flex'); }
-        });
-        if (views[viewName]) {
-            views[viewName].classList.remove('hidden');
-            if (viewName !== 'dashboard') views[viewName].classList.add('flex');
-        }
-        
-        // NOTE FOR LOCAL DEPLOYMENT: 
-        // In a real multi-file setup, you would replace these lines with:
-        // window.location.href = 'dash.html' (or 'login.html')
-        if (viewName === 'auth') window.history.replaceState(null, null, '#login');
-        if (viewName === 'dashboard') window.history.replaceState(null, null, '#dash');
-        if (viewName === 'setup') window.history.replaceState(null, null, '#setup');
-    }
+            userNameEl.textContent = displayName;
+            bannerUserNameEl.textContent = displayName;
+            userAvatarEl.src = avatarSrc;
 
-    // Route Enforcement: Monitor URL changes and verify authentication
-    window.addEventListener('hashchange', () => {
-        const hash = window.location.hash;
-        const user = auth?.currentUser;
-        
-        if (hash === '#dash' && !user) {
-            // Unauthenticated user trying to access dashboard -> Send to login
-            showView('auth');
-        } else if (hash === '#login' && user) {
-            // Authenticated user trying to access login -> Send to dashboard
-            showView('dashboard');
-        }
-    });
-
-    function showAlert(type, msg) {
-            ui.errorAlert.classList.add('hidden');
-            ui.successAlert.classList.add('hidden');
-            if (!msg) return;
+            cardNameEl.textContent = displayName;
+            cardEmailEl.textContent = email;
+            cardAvatarEl.src = avatarSrc;
+            cardDobEl.textContent = dob;
+            cardUidEl.textContent = uid;
             
-            if (type === 'error') {
-                ui.errorMessage.textContent = msg;
-                ui.errorAlert.classList.remove('hidden');
+            if (profile.createdAt) {
+                const createdDate = new Date(profile.createdAt);
+                cardCreatedEl.textContent = createdDate.toLocaleDateString();
             } else {
-                ui.successMessage.textContent = msg;
-                ui.successAlert.classList.remove('hidden');
+                cardCreatedEl.textContent = 'Recently';
             }
         }
 
-        function updateUIForMode() {
-            showAlert(null);
-            ui.passwordInput.value = '';
+        // Initialize Analytics Charts (Chart.js)
+        function initCharts() {
+            // Chart 1: Revenue Line Chart
+            const revCanvas = document.getElementById('revenueChart');
+            if (revCanvas) {
+                const ctx = revCanvas.getContext('2d');
+                
+                // Gradient fill
+                const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+                gradient.addColorStop(0, 'rgba(99, 102, 241, 0.4)');
+                gradient.addColorStop(1, 'rgba(99, 102, 241, 0.0)');
 
-            if (currentAuthMode === 'login') {
-                ui.authTitle.textContent = 'Sign in to your account';
-                ui.passwordContainer.classList.remove('hidden');
-                ui.passwordInput.required = true;
-                ui.forgotPasswordBtn.classList.remove('hidden');
-                ui.submitText.textContent = 'Sign in';
-                ui.dividerText.textContent = 'New here?';
-                ui.toggleModeBtn.textContent = 'Create a new account';
-            } else if (currentAuthMode === 'register') {
-                ui.authTitle.textContent = 'Create a secure account';
-                ui.passwordContainer.classList.remove('hidden');
-                ui.passwordInput.required = true;
-                ui.forgotPasswordBtn.classList.add('hidden');
-                ui.submitText.textContent = 'Create account';
-                ui.dividerText.textContent = 'Already have an account?';
-                ui.toggleModeBtn.textContent = 'Sign in to existing account';
-            } else if (currentAuthMode === 'reset') {
-                ui.authTitle.textContent = 'Reset your password';
-                ui.passwordContainer.classList.add('hidden');
-                ui.passwordInput.required = false;
-                ui.submitText.textContent = 'Send reset link';
-                ui.dividerText.textContent = 'Remembered your password?';
-                ui.toggleModeBtn.textContent = 'Back to sign in';
-            }
-            feather.replace();
-        }
-
-        // Toggles
-        ui.togglePasswordBtn.addEventListener('click', () => {
-            isPasswordVisible = !isPasswordVisible;
-            ui.passwordInput.type = isPasswordVisible ? 'text' : 'password';
-            ui.togglePasswordBtn.innerHTML = `<i data-feather="${isPasswordVisible ? 'eye-off' : 'eye'}" class="h-5 w-5"></i>`;
-            feather.replace();
-        });
-
-        ui.toggleModeBtn.addEventListener('click', () => {
-            currentAuthMode = currentAuthMode === 'login' ? 'register' : 'login';
-            updateUIForMode();
-        });
-
-        ui.forgotPasswordBtn.addEventListener('click', () => {
-            currentAuthMode = 'reset';
-            updateUIForMode();
-        });
-
-        const getSecureErrorMessage = (code) => {
-            if (code.includes('user-not-found') || code.includes('wrong-password') || code.includes('invalid-credential')) return 'Invalid email or password.';
-            if (code.includes('too-many-requests')) return 'Too many attempts. Please try again later.';
-            if (code.includes('email-already-in-use')) return 'An error occurred. Please try logging in.';
-            if (code.includes('weak-password')) return 'Password must be at least 6 characters.';
-            return 'An unexpected error occurred. Please try again.';
-        };
-
-        ui.form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            if (isSubmitting || !auth) return;
-
-            const email = ui.emailInput.value.trim();
-            const password = ui.passwordInput.value;
-
-            isSubmitting = true;
-            ui.submitBtn.disabled = true;
-            ui.submitText.classList.add('hidden');
-            ui.submitIcon.classList.add('hidden');
-            ui.submitSpinner.classList.remove('hidden');
-            showAlert(null);
-
-            try {
-                if (currentAuthMode === 'login') {
-                    await signInWithEmailAndPassword(auth, email, password);
-                } else if (currentAuthMode === 'register') {
-                    await createUserWithEmailAndPassword(auth, email, password);
-                } else if (currentAuthMode === 'reset') {
-                    await sendPasswordResetEmail(auth, email);
-                    showAlert('success', 'If an account exists, a reset link was sent.');
-                }
-            } catch (error) {
-                showAlert('error', getSecureErrorMessage(error.code));
-            } finally {
-                isSubmitting = false;
-                ui.submitBtn.disabled = false;
-                ui.submitText.classList.remove('hidden');
-                ui.submitIcon.classList.remove('hidden');
-                ui.submitSpinner.classList.add('hidden');
-            }
-        });
-
-        ui.logoutBtn.addEventListener('click', () => signOut(auth));
-
-        // Image Upload to Base64 logic
-        ui.avatarUpload.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            // Optional: Limit file size to 1MB to prevent large Firestore docs
-            if (file.size > 1024 * 1024) {
-                ui.setupError.textContent = "Image must be less than 1MB";
-                ui.setupError.classList.remove('hidden');
-                return;
-            }
-
-            ui.setupError.classList.add('hidden');
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                avatarBase64 = event.target.result;
-                ui.avatarPreview.src = avatarBase64;
-                ui.avatarPreview.classList.remove('hidden');
-                ui.avatarPlaceholder.classList.add('hidden');
-            };
-            reader.readAsDataURL(file);
-        });
-
-        // Setup Form Submission
-        ui.setupForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const user = auth.currentUser;
-            if (!user) return;
-
-            const name = ui.setupName.value.trim();
-            const dob = ui.setupDob.value;
-
-            if (!name || !dob) {
-                ui.setupError.textContent = "Please fill in all fields.";
-                ui.setupError.classList.remove('hidden');
-                return;
-            }
-
-            ui.setupSubmitBtn.disabled = true;
-            ui.setupSubmitText.classList.add('hidden');
-            ui.setupSubmitSpinner.classList.remove('hidden');
-            ui.setupError.classList.add('hidden');
-
-            try {
-                // Rule 1: Using secure private user path
-                const profileRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data');
-                await setDoc(profileRef, {
-                    name,
-                    dob,
-                    avatarBase64: avatarBase64 || '',
-                    createdAt: new Date().toISOString()
-                });
-
-                // Transition to Dashboard immediately
-                populateDashboard(user, { name, dob, avatarBase64 });
-                showView('dashboard');
-            } catch (error) {
-                console.error("Profile Save Error:", error);
-                ui.setupError.textContent = "Failed to save profile. Please try again.";
-                ui.setupError.classList.remove('hidden');
-            } finally {
-                ui.setupSubmitBtn.disabled = false;
-                ui.setupSubmitText.classList.remove('hidden');
-                ui.setupSubmitSpinner.classList.add('hidden');
-            }
-        });
-
-        function populateDashboard(user, profileData) {
-            ui.userEmailDisplay.textContent = user.email;
-            ui.userUidDisplay.textContent = user.uid;
-            ui.displayName.textContent = profileData.name || 'Anonymous User';
-            ui.displayDob.textContent = profileData.dob || 'Not provided';
-            
-            if (profileData.avatarBase64) {
-                ui.displayAvatar.src = profileData.avatarBase64;
-            } else {
-                // Generate a placeholder based on initials
-                const initial = (profileData.name || 'U').charAt(0).toUpperCase();
-                ui.displayAvatar.src = `https://placehold.co/150x150/4f46e5/ffffff?text=${initial}`;
-            }
-
-            // Re-render Feather icons in case the dashboard contains new icons that were previously hidden
-            setTimeout(() => {
-                if (typeof feather !== 'undefined') feather.replace();
-            }, 10);
-        }
-
-        if (auth) {
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                showView('loading');
-                try {
-                    // Check if the user has completed their profile
-                    const profileRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data');
-                    const profileSnap = await getDoc(profileRef);
-
-                    if (profileSnap.exists()) {
-                        // User exists, send to dash.html (simulated via hash)
-                        populateDashboard(user, profileSnap.data());
-                        showView('dashboard');
-                    } else {
-                        // New user, push to setup
-                        showView('setup');
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'],
+                        datasets: [{
+                            label: 'Revenue ($)',
+                            data: [18500, 22400, 27100, 31000, 34800, 39200, 42100, 48290],
+                            borderColor: '#6366f1',
+                            borderWidth: 3,
+                            backgroundColor: gradient,
+                            fill: true,
+                            tension: 0.4,
+                            pointBackgroundColor: '#6366f1',
+                            pointHoverRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: '#1e293b',
+                                titleColor: '#fff',
+                                bodyColor: '#cbd5e1',
+                                borderColor: '#334155',
+                                borderWidth: 1,
+                                padding: 12,
+                                displayColors: false
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: { color: 'rgba(51, 65, 85, 0.3)' },
+                                ticks: { color: '#94a3b8', font: { family: 'Inter', size: 11 } }
+                            },
+                            y: {
+                                grid: { color: 'rgba(51, 65, 85, 0.3)' },
+                                ticks: { 
+                                    color: '#94a3b8', 
+                                    font: { family: 'Inter', size: 11 },
+                                    callback: (val) => '$' + val.toLocaleString()
+                                }
+                            }
+                        }
                     }
-                } catch (error) {
-                    console.error("Profile Fetch Error:", error);
-                    // If Firestore rules fail, safely route back to setup/auth
-                    showView('setup'); 
-                }
-            } else {
-                // No user detected, redirect to login.html (simulated via hash)
-                showView('auth');
-                updateUIForMode();
+                });
+            }
+
+            // Chart 2: Device Doughnut Chart
+            const devCanvas = document.getElementById('deviceChart');
+            if (devCanvas) {
+                const ctx = devCanvas.getContext('2d');
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Desktop', 'Mobile', 'Tablet', 'API'],
+                        datasets: [{
+                            data: [55, 32, 8, 5],
+                            backgroundColor: ['#6366f1', '#818cf8', '#c084fc', '#34d399'],
+                            borderWidth: 0,
+                            hoverOffset: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '72%',
+                        plugins: {
+                            legend: { display: false }
+                        }
+                    }
+                });
+            }
+        }
+
+        // Table Search Filter Logic
+        const tableSearch = document.getElementById('table-search');
+        if (tableSearch) {
+            tableSearch.addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase();
+                const rows = document.querySelectorAll('#transaction-rows tr');
+                rows.forEach(row => {
+                    const text = row.textContent.toLowerCase();
+                    row.style.display = text.includes(query) ? '' : 'none';
+                });
+            });
+        }
+
+        // Logout Handler
+        logoutBtn.addEventListener('click', async () => {
+            if (!auth) return;
+            try {
+                await signOut(auth);
+                window.location.href = 'login.html';
+            } catch (err) {
+                console.error("Sign Out Error:", err);
             }
         });
-    } else {
-        showView('auth');
-        showAlert('error', "Authentication service unavailable. Please check configuration.");
-    }
 
-</script>
+        // ROUTE PROTECTION & AUTH STATE MONITORING
+        if (auth) {
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    try {
+                        // Query user profile from Firestore
+                        const profileRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data');
+                        const rootRef = doc(db, 'users', user.uid);
+
+                        let profileSnap = await getDoc(profileRef);
+                        if (!profileSnap.exists()) {
+                            profileSnap = await getDoc(rootRef);
+                        }
+
+                        if (profileSnap.exists() && profileSnap.data().name) {
+                            // User is authenticated and profile exists -> Show Dashboard
+                            populateDashboardProfile(user, profileSnap.data());
+                            
+                            loadingScreen.classList.add('hidden');
+                            dashboardApp.classList.remove('hidden');
+
+                            if (typeof feather !== 'undefined') feather.replace();
+                            initCharts();
+                        } else {
+                            // User is authenticated but hasn't completed profile -> Redirect to login.html setup view
+                            window.location.href = 'login.html';
+                        }
+                    } catch (error) {
+                        console.error("Profile Fetch Error on Dash:", error);
+                        // If error fetching profile, redirect to login page
+                        window.location.href = 'login.html';
+                    }
+                } else {
+                    // USER IS NOT SIGNED IN -> REDIRECT TO LOGIN
+                    window.location.href = 'login.html';
+                }
+            });
+        } else {
+            window.location.href = 'login.html';
+        }
+    </script>
 </body>
 </html>
