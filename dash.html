@@ -561,7 +561,7 @@
         // Feather Icons Initialization
         if (typeof feather !== 'undefined') feather.replace();
 
-        // DOM Elements
+        // DOM elements
         const loadingScreen = document.getElementById('loading-screen');
         const dashboardApp = document.getElementById('dashboard-app');
         const logoutBtn = document.getElementById('logout-btn');
@@ -761,13 +761,13 @@
             onAuthStateChanged(auth, async (user) => {
                 if (user) {
                     try {
-                        // Query user profile from Firestore
-                        const profileRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data');
+                        // Query user profile from Firestore (Root path prioritized)
                         const rootRef = doc(db, 'users', user.uid);
+                        const profileRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data');
 
-                        let profileSnap = await getDoc(profileRef);
+                        let profileSnap = await getDoc(rootRef);
                         if (!profileSnap.exists()) {
-                            profileSnap = await getDoc(rootRef);
+                            profileSnap = await getDoc(profileRef);
                         }
 
                         if (profileSnap.exists() && profileSnap.data().name) {
