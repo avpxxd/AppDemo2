@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexus - Authentication & Profile Setup</title>
-    <meta name="description" content="Secure login and account setup portal for Nexus Dashboard.">
+    <title>Nexus - Authentication & Verification</title>
+    <meta name="description" content="Secure login, registration, password verification, and email verification portal for Nexus.">
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -26,6 +26,7 @@
                         brand: {
                             50: '#eef2ff',
                             100: '#e0e7ff',
+                            400: '#818cf8',
                             500: '#6366f1',
                             600: '#4f46e5',
                             700: '#4338ca',
@@ -69,13 +70,13 @@
                     <i data-feather="hexagon" class="w-8 h-8"></i>
                 </div>
                 <h1 class="text-3xl font-extrabold tracking-tight text-white">Nexus Portal</h1>
-                <p class="mt-2 text-sm text-slate-400">Enterprise Analytics & Data Management</p>
+                <p class="mt-2 text-sm text-slate-400">Enterprise Analytics & Data Security</p>
             </div>
 
             <!-- Card Shell -->
             <div class="bg-slate-800/80 backdrop-blur-xl border border-slate-700/60 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-black/50">
 
-                <!-- Alert Messages -->
+                <!-- Global Alert Messages -->
                 <div id="error-alert" class="hidden mb-6 bg-red-500/10 border border-red-500/30 p-4 rounded-2xl flex items-start gap-3 text-red-400 text-sm animate-fade-in">
                     <i data-feather="alert-circle" class="w-5 h-5 flex-shrink-0 mt-0.5"></i>
                     <p id="error-message" class="flex-1 leading-snug"></p>
@@ -93,7 +94,7 @@
                         <p id="auth-subtitle" class="text-xs text-slate-400 mt-1">Enter your credentials below to proceed</p>
                     </div>
 
-                    <form id="auth-form" class="space-y-5">
+                    <form id="auth-form" class="space-y-4 sm:space-y-5">
                         <!-- Email Input -->
                         <div>
                             <label for="email" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">Email Address</label>
@@ -128,6 +129,22 @@
                             </div>
                         </div>
 
+                        <!-- Confirm Password Input (Shown during registration) -->
+                        <div id="confirm-password-container" class="hidden">
+                            <label for="confirm-password" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">Confirm Password</label>
+                            <div class="relative rounded-xl shadow-sm">
+                                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                                    <i data-feather="check-square" class="w-5 h-5"></i>
+                                </div>
+                                <input id="confirm-password" name="confirm-password" type="password" autocomplete="new-password"
+                                    class="block w-full pl-11 pr-11 py-3 bg-slate-900/80 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent text-sm transition-all"
+                                    placeholder="Re-enter password">
+                                <button type="button" id="toggle-confirm-password-btn" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-200 focus:outline-none">
+                                    <i data-feather="eye" id="confirm-eye-icon" class="w-5 h-5"></i>
+                                </button>
+                            </div>
+                        </div>
+
                         <!-- Submit Button -->
                         <button type="submit" id="submit-btn" 
                             class="w-full flex items-center justify-center gap-2 py-3.5 px-4 border border-transparent rounded-xl shadow-lg shadow-brand-600/30 text-sm font-semibold text-white bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 active:scale-[0.99] transition-all disabled:opacity-50 cursor-pointer">
@@ -148,7 +165,52 @@
                     </div>
                 </div>
 
-                <!-- View 2: Account Setup View (Triggered after Register if profile incomplete) -->
+                <!-- View 2: Email Verification Code Screen -->
+                <div id="verify-view" class="hidden space-y-6">
+                    <div class="text-center">
+                        <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-brand-500/20 text-brand-400 mb-3 border border-brand-500/30 shadow-lg shadow-brand-500/20">
+                            <i data-feather="mail" class="w-6 h-6"></i>
+                        </div>
+                        <h2 class="text-xl font-bold text-white">Verify Your Email</h2>
+                        <p class="text-xs text-slate-400 mt-1">We sent a verification email and code to:</p>
+                        <p id="verify-email-display" class="text-xs font-semibold text-brand-300 mt-0.5 truncate px-2">user@example.com</p>
+                    </div>
+
+                    <!-- Code Dispatch Banner -->
+                    <div class="bg-indigo-500/10 border border-indigo-500/30 p-4 rounded-2xl text-center space-y-2">
+                        <p class="text-xs text-indigo-300 font-medium">📬 Verification email sent to your inbox!</p>
+                        <div class="flex items-center justify-center gap-2 pt-1 border-t border-indigo-500/20">
+                            <span class="text-[11px] text-slate-400">Your 6-Digit Code:</span>
+                            <span id="demo-code-badge" class="font-mono font-extrabold text-amber-300 bg-slate-950 px-2.5 py-1 rounded-lg border border-amber-500/40 text-sm tracking-widest">123456</span>
+                        </div>
+                    </div>
+
+                    <form id="verify-form" class="space-y-5">
+                        <div>
+                            <label for="verify-code-input" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2 text-center">Enter 6-Digit Code</label>
+                            <input id="verify-code-input" type="text" maxlength="6" pattern="[0-9]{6}" required autocomplete="one-time-code"
+                                class="block w-full text-center tracking-[0.4em] text-2xl font-mono py-3.5 bg-slate-900 border border-slate-700 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all"
+                                placeholder="123456">
+                        </div>
+
+                        <div id="verify-error" class="hidden text-xs text-red-400 text-center font-medium bg-red-500/10 py-2 rounded-lg border border-red-500/20"></div>
+
+                        <button type="submit" id="verify-submit-btn" 
+                            class="w-full flex items-center justify-center gap-2 py-3.5 px-4 border border-transparent rounded-xl shadow-lg shadow-brand-600/30 text-sm font-semibold text-white bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 active:scale-[0.99] transition-all disabled:opacity-50 cursor-pointer">
+                            <span id="verify-submit-text">Verify Email & Continue</span>
+                            <div id="verify-submit-spinner" class="hidden w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        </button>
+                    </form>
+
+                    <div class="text-center text-xs space-y-2 pt-3 border-t border-slate-700/60">
+                        <p class="text-slate-400">Didn't receive the email?</p>
+                        <button type="button" id="resend-code-btn" class="font-semibold text-brand-400 hover:text-brand-300 transition-colors focus:outline-none">
+                            Resend Verification Code & Email
+                        </button>
+                    </div>
+                </div>
+
+                <!-- View 3: Account Setup View (Profile details after verification) -->
                 <div id="setup-view" class="hidden space-y-6">
                     <div class="text-center">
                         <span class="px-3 py-1 bg-brand-500/10 border border-brand-500/30 text-brand-400 text-xs font-semibold rounded-full uppercase tracking-wider">Step 2 of 2</span>
@@ -220,7 +282,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Global Environment Variables & Config
@@ -252,13 +314,16 @@
         // State variables
         let currentAuthMode = 'login'; // 'login', 'register', 'reset'
         let isPasswordVisible = false;
+        let isConfirmPasswordVisible = false;
         let isSubmitting = false;
         let avatarBase64 = null;
+        let activeVerificationCode = null;
 
         // DOM elements
         const views = {
             loading: document.getElementById('loading-view'),
             auth: document.getElementById('auth-view'),
+            verify: document.getElementById('verify-view'),
             setup: document.getElementById('setup-view')
         };
 
@@ -266,8 +331,11 @@
             authForm: document.getElementById('auth-form'),
             emailInput: document.getElementById('email'),
             passwordInput: document.getElementById('password'),
+            confirmPasswordInput: document.getElementById('confirm-password'),
             passwordContainer: document.getElementById('password-container'),
+            confirmPasswordContainer: document.getElementById('confirm-password-container'),
             togglePasswordBtn: document.getElementById('toggle-password-btn'),
+            toggleConfirmPasswordBtn: document.getElementById('toggle-confirm-password-btn'),
             forgotPasswordBtn: document.getElementById('forgot-password-btn'),
             toggleModeBtn: document.getElementById('toggle-mode-btn'),
             submitBtn: document.getElementById('submit-btn'),
@@ -281,6 +349,17 @@
             errorMessage: document.getElementById('error-message'),
             successAlert: document.getElementById('success-alert'),
             successMessage: document.getElementById('success-message'),
+
+            // Verification View
+            verifyForm: document.getElementById('verify-form'),
+            verifyEmailDisplay: document.getElementById('verify-email-display'),
+            demoCodeBadge: document.getElementById('demo-code-badge'),
+            verifyCodeInput: document.getElementById('verify-code-input'),
+            verifySubmitBtn: document.getElementById('verify-submit-btn'),
+            verifySubmitText: document.getElementById('verify-submit-text'),
+            verifySubmitSpinner: document.getElementById('verify-submit-spinner'),
+            verifyError: document.getElementById('verify-error'),
+            resendCodeBtn: document.getElementById('resend-code-btn'),
 
             // Setup View
             setupForm: document.getElementById('setup-form'),
@@ -298,6 +377,7 @@
         function showView(viewName) {
             views.loading.classList.add('hidden');
             views.auth.classList.add('hidden');
+            views.verify.classList.add('hidden');
             views.setup.classList.add('hidden');
 
             if (views[viewName]) {
@@ -323,12 +403,15 @@
         function updateUIForMode() {
             showAlert(null);
             ui.passwordInput.value = '';
+            ui.confirmPasswordInput.value = '';
 
             if (currentAuthMode === 'login') {
                 ui.authTitle.textContent = 'Sign in to your account';
                 ui.authSubtitle.textContent = 'Enter your credentials below to proceed';
                 ui.passwordContainer.classList.remove('hidden');
+                ui.confirmPasswordContainer.classList.add('hidden');
                 ui.passwordInput.required = true;
+                ui.confirmPasswordInput.required = false;
                 ui.forgotPasswordBtn.classList.remove('hidden');
                 ui.submitText.textContent = 'Sign In';
                 ui.dividerText.textContent = "Don't have an account?";
@@ -337,7 +420,9 @@
                 ui.authTitle.textContent = 'Create a secure account';
                 ui.authSubtitle.textContent = 'Join Nexus to start managing your analytics';
                 ui.passwordContainer.classList.remove('hidden');
+                ui.confirmPasswordContainer.classList.remove('hidden');
                 ui.passwordInput.required = true;
+                ui.confirmPasswordInput.required = true;
                 ui.forgotPasswordBtn.classList.add('hidden');
                 ui.submitText.textContent = 'Create Account';
                 ui.dividerText.textContent = 'Already have an account?';
@@ -346,7 +431,9 @@
                 ui.authTitle.textContent = 'Reset your password';
                 ui.authSubtitle.textContent = "We'll send a recovery link to your email address";
                 ui.passwordContainer.classList.add('hidden');
+                ui.confirmPasswordContainer.classList.add('hidden');
                 ui.passwordInput.required = false;
+                ui.confirmPasswordInput.required = false;
                 ui.submitText.textContent = 'Send Reset Link';
                 ui.dividerText.textContent = 'Remembered your password?';
                 ui.toggleModeBtn.textContent = 'Back to Sign In';
@@ -354,11 +441,18 @@
             if (typeof feather !== 'undefined') feather.replace();
         }
 
-        // Toggles
+        // Toggles for Password & Confirm Password
         ui.togglePasswordBtn.addEventListener('click', () => {
             isPasswordVisible = !isPasswordVisible;
             ui.passwordInput.type = isPasswordVisible ? 'text' : 'password';
             ui.togglePasswordBtn.innerHTML = `<i data-feather="${isPasswordVisible ? 'eye-off' : 'eye'}" class="w-5 h-5"></i>`;
+            if (typeof feather !== 'undefined') feather.replace();
+        });
+
+        ui.toggleConfirmPasswordBtn.addEventListener('click', () => {
+            isConfirmPasswordVisible = !isConfirmPasswordVisible;
+            ui.confirmPasswordInput.type = isConfirmPasswordVisible ? 'text' : 'password';
+            ui.toggleConfirmPasswordBtn.innerHTML = `<i data-feather="${isConfirmPasswordVisible ? 'eye-off' : 'eye'}" class="w-5 h-5"></i>`;
             if (typeof feather !== 'undefined') feather.replace();
         });
 
@@ -382,13 +476,60 @@
             return 'Authentication error: ' + code.replace('auth/', '');
         };
 
-        // Handle Auth Submit
+        // Generate 6-digit verification code
+        function generateCode() {
+            return Math.floor(100000 + Math.random() * 900000).toString();
+        }
+
+        // Dispatch Email Verification & Code
+        async function dispatchEmailVerification(user) {
+            activeVerificationCode = generateCode();
+            
+            // Try sending Firebase email verification link
+            try {
+                await sendEmailVerification(user);
+            } catch (err) {
+                console.warn("Firebase Email Verification Notice:", err);
+            }
+
+            // Save verification code to Firestore
+            try {
+                const codeRef = doc(db, 'artifacts', appId, 'users', user.uid, 'verification', 'data');
+                await setDoc(codeRef, {
+                    code: activeVerificationCode,
+                    email: user.email,
+                    createdAt: new Date().toISOString(),
+                    verified: false
+                });
+            } catch (err) {
+                console.error("Error saving verification code:", err);
+            }
+
+            ui.verifyEmailDisplay.textContent = user.email;
+            ui.demoCodeBadge.textContent = activeVerificationCode;
+            showView('verify');
+        }
+
+        // Handle Auth Form Submission
         ui.authForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             if (isSubmitting || !auth) return;
 
             const email = ui.emailInput.value.trim();
             const password = ui.passwordInput.value;
+            const confirmPassword = ui.confirmPasswordInput.value;
+
+            // Password Double Entry Verification Check
+            if (currentAuthMode === 'register') {
+                if (password.length < 6) {
+                    showAlert('error', 'Password must be at least 6 characters long.');
+                    return;
+                }
+                if (password !== confirmPassword) {
+                    showAlert('error', 'Passwords do not match. Please enter the exact same password in both fields.');
+                    return;
+                }
+            }
 
             isSubmitting = true;
             ui.submitBtn.disabled = true;
@@ -400,10 +541,11 @@
             try {
                 if (currentAuthMode === 'login') {
                     await signInWithEmailAndPassword(auth, email, password);
-                    // onAuthStateChanged will handle checking profile & redirecting
                 } else if (currentAuthMode === 'register') {
-                    await createUserWithEmailAndPassword(auth, email, password);
-                    // onAuthStateChanged will detect missing profile and prompt setup
+                    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                    const user = userCredential.user;
+                    // Trigger email verification step with 6-digit code
+                    await dispatchEmailVerification(user);
                 } else if (currentAuthMode === 'reset') {
                     await sendPasswordResetEmail(auth, email);
                     showAlert('success', 'If an account exists, a password reset email has been sent.');
@@ -418,6 +560,66 @@
                 ui.submitIcon.classList.remove('hidden');
                 ui.submitSpinner.classList.add('hidden');
             }
+        });
+
+        // Verification Form Submission
+        ui.verifyForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const user = auth.currentUser;
+            if (!user) return;
+
+            const enteredCode = ui.verifyCodeInput.value.trim();
+            ui.verifyError.classList.add('hidden');
+
+            ui.verifySubmitBtn.disabled = true;
+            ui.verifySubmitText.classList.add('hidden');
+            ui.verifySubmitSpinner.classList.remove('hidden');
+
+            try {
+                // Verify against memory or Firestore
+                let isMatch = (enteredCode === activeVerificationCode);
+                
+                if (!isMatch) {
+                    const codeRef = doc(db, 'artifacts', appId, 'users', user.uid, 'verification', 'data');
+                    const codeSnap = await getDoc(codeRef);
+                    if (codeSnap.exists() && codeSnap.data().code === enteredCode) {
+                        isMatch = true;
+                    }
+                }
+
+                if (isMatch) {
+                    // Mark verified in Firestore
+                    const codeRef = doc(db, 'artifacts', appId, 'users', user.uid, 'verification', 'data');
+                    await setDoc(codeRef, { verified: true, verifiedAt: new Date().toISOString() }, { merge: true });
+
+                    // Proceed to step 2 (Profile Setup)
+                    showView('setup');
+                } else {
+                    ui.verifyError.textContent = "Invalid verification code. Please check the 6-digit code and try again.";
+                    ui.verifyError.classList.remove('hidden');
+                }
+            } catch (err) {
+                console.error("Verification submit error:", err);
+                ui.verifyError.textContent = "Failed to verify code. Please try again.";
+                ui.verifyError.classList.remove('hidden');
+            } finally {
+                ui.verifySubmitBtn.disabled = false;
+                ui.verifySubmitText.classList.remove('hidden');
+                ui.verifySubmitSpinner.classList.add('hidden');
+            }
+        });
+
+        // Resend Verification Code
+        ui.resendCodeBtn.addEventListener('click', async () => {
+            const user = auth.currentUser;
+            if (!user) return;
+            ui.verifyError.classList.add('hidden');
+            await dispatchEmailVerification(user);
+            ui.verifyError.textContent = "A new verification code has been generated and sent!";
+            ui.verifyError.classList.remove('hidden');
+            ui.verifyError.classList.replace('text-red-400', 'text-emerald-400');
+            ui.verifyError.classList.replace('bg-red-500/10', 'bg-emerald-500/10');
+            ui.verifyError.classList.replace('border-red-500/20', 'border-emerald-500/20');
         });
 
         // Image Upload to Base64 logic
@@ -469,10 +671,10 @@
                     avatarBase64: avatarBase64 || '',
                     email: user.email,
                     uid: user.uid,
+                    emailVerified: true,
                     createdAt: new Date().toISOString()
                 };
 
-                // Write to artifact location & direct user doc location
                 const profileRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data');
                 const rootProfileRef = doc(db, 'users', user.uid);
                 
@@ -512,8 +714,17 @@
                             // User is already logged in with complete profile -> Redirect to dash.html
                             window.location.href = 'dash.html';
                         } else {
-                            // User logged in but needs profile setup
-                            showView('setup');
+                            // User logged in but needs verification / setup
+                            const verifyRef = doc(db, 'artifacts', appId, 'users', user.uid, 'verification', 'data');
+                            const verifySnap = await getDoc(verifyRef);
+                            
+                            if (verifySnap.exists() && verifySnap.data().verified) {
+                                showView('setup');
+                            } else if (activeVerificationCode) {
+                                showView('verify');
+                            } else {
+                                await dispatchEmailVerification(user);
+                            }
                         }
                     } catch (err) {
                         console.error("Error reading user profile:", err);
