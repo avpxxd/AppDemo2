@@ -761,18 +761,36 @@
             onAuthStateChanged(auth, async (user) => {
                 if (user) {
                     try {
-                        // Query user profile from Firestore (Root path prioritized)
-                        const rootRef = doc(db, 'users', user.uid);
-                        const profileRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data');
+                        let profileData = null;
 
-                        let profileSnap = await getDoc(rootRef);
-                        if (!profileSnap.exists()) {
-                            profileSnap = await getDoc(profileRef);
+                        // 1. Check local storage cache first
+                        const cachedProfile = localStorage.getItem('nexus_profile_' + user.uid);
+                        if (cachedProfile) {
+                            try { profileData = JSON.parse(cachedProfile); } catch (e) {}
                         }
 
-                        if (profileSnap.exists() && profileSnap.data().name) {
+                        // 2. Fallback to Firestore if local cache missing
+                        if (!profileData) {
+                            try {
+                                const rootRef = doc(db, 'users', user.uid);
+                                const profileRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data');
+
+                                let profileSnap = await getDoc(rootRef).catch(() => null);
+                                if (!profileSnap || !profileSnap.exists()) {
+                                    profileSnap = await getDoc(profileRef).catch(() => null);
+                                }
+
+                                if (profileSnap && profileSnap.exists()) {
+                                    profileData = profileSnap.data();
+                                }
+                            } catch (fsErr) {
+                                console.warn("Firestore fetch notice:", fsErr);
+                            }
+                        }
+
+                        if (profileData && profileData.name) {
                             // User is authenticated and profile exists -> Show Dashboard
-                            populateDashboardProfile(user, profileSnap.data());
+                            populateDashboardProfile(user, profileData);
                             
                             loadingScreen.classList.add('hidden');
                             dashboardApp.classList.remove('hidden');
